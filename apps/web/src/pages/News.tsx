@@ -1,0 +1,119 @@
+import { ArticleCardSkeleton, SkeletonList } from "@/components/Skeleton";
+import { EmptyState, ErrorState } from "@/components/States";
+import { PageHeader, useTitle } from "@/components/PageShell";
+import { useNews } from "@/lib/queries";
+import { articleDate } from "@/lib/format";
+import { useReveal } from "@/lib/motion";
+import type { NewsArticle } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+
+/**
+ * The API has no /news endpoint yet. The page is wired to one so it lights up
+ * the moment it ships; until then a 404 is treated as "not published" rather
+ * than an error, because nothing is broken.
+ */
+export default function News() {
+  useTitle("News");
+
+  const { data, isPending, isError, error, refetch } = useNews();
+  const articles = data?.data.articles ?? [];
+  const notPublishedYet = error instanceof ApiError && error.status === 404;
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Reading"
+        title="News"
+        lede="Transfer business, injury news and match reports from across the continent."
+      />
+
+      <div className="u-frame pb-section">
+        {isPending ? (
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            <SkeletonList count={6}>{() => <ArticleCardSkeleton />}</SkeletonList>
+          </div>
+        ) : notPublishedYet ? (
+          <EmptyState
+            headline="Not wired up yet"
+            detail="The news feed has not shipped. Everything else on the site runs on live data — fixtures and tables update every minute."
+          />
+        ) : isError ? (
+          <ErrorState error={error} onRetry={() => void refetch()} />
+        ) : articles.length === 0 ? (
+          <EmptyState
+            headline="Nothing published"
+            detail="No stories have come through the feed today. Try the fixtures page for what is actually happening."
+          />
+        ) : (
+          <ArticleGrid articles={articles} />
+        )}
+      </div>
+    </>
+  );
+}
+
+function ArticleGrid({ articles }: { articles: NewsArticle[] }) {
+  const scope = useReveal<HTMLDivElement>({ y: 26, stagger: 0.07 });
+  const [lead, ...rest] = articles;
+
+  return (
+    <div ref={scope} className="flex flex-col gap-10">
+      {/* The first story runs wide — an editorial page should not be a uniform grid. */}
+      {lead && <ArticleCard article={lead} featured />}
+
+      {rest.length > 0 && (
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          {rest.map((article) => (
+            <ArticleCard key={article.id} article={article} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ArticleCard({ article, featured = false }: { article: NewsArticle; featured?: boolean }) {
+  const Wrapper = article.url ? "a" : "div";
+
+  return (
+    <article className="js-reveal">
+      <Wrapper
+        {...(article.url
+          ? { href: article.url, target: "_blank", rel: "noopener noreferrer" }
+          : {})}
+        className={`group block h-full border border-ink-line transition-all duration-500 ease-out
+                    hover:-translate-y-1 hover:border-ember/40 hover:shadow-ember
+                    ${featured ? "sm:grid sm:grid-cols-2" : ""}`}
+      >
+        {/* Placeholder art: an angled ember wash, not a grey box. */}
+        <div
+          className={`relative overflow-hidden bg-ink-raised ${featured ? "aspect-[16/10] sm:aspect-auto" : "aspect-[16/10]"}`}
+          aria-hidden="true"
+        >
+          <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(204,85,0,0.22),transparent_55%)]" />
+          <div className="absolute inset-0 bg-stands opacity-60" />
+          <span className="u-display absolute bottom-4 left-4 text-4xl text-ink-line">E</span>
+        </div>
+
+        <div className={`flex flex-col p-5 ${featured ? "justify-center sm:p-9" : ""}`}>
+          <p className="u-eyebrow text-ember">
+            {article.source ?? "Esquinazo"} · {articleDate(article.publishedAt)}
+          </p>
+
+          <h2
+            className={`u-display mt-3 text-ink-bright transition-colors duration-300
+                        group-hover:text-ember ${featured ? "text-title" : "text-base leading-snug"}`}
+          >
+            {article.title}
+          </h2>
+
+          {article.summary && (
+            <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-ink-muted">
+              {article.summary}
+            </p>
+          )}
+        </div>
+      </Wrapper>
+    </article>
+  );
+}

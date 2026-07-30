@@ -37,6 +37,12 @@ variable "football_data_api_key" {
   sensitive   = true
 }
 
+variable "news_api_key" {
+  description = "API key for NewsAPI.org, injected only into the news Lambda (see local.news_function in main.tf)."
+  type        = string
+  sensitive   = true
+}
+
 variable "tags" {
   description = "Additional tags merged over the default Project/Environment tags."
   type        = map(string)

@@ -1,0 +1,104 @@
+import { Link } from "react-router-dom";
+import { useNews } from "@/lib/queries";
+import { articleDate } from "@/lib/format";
+import { useReveal } from "@/lib/motion";
+import type { NewsArticle } from "@/lib/api";
+
+/**
+ * Homepage headline rundown. Unlike the dedicated /news page, this section
+ * explains nothing when there is no data - it simply does not render, so a
+ * missing feed (the API has no /news endpoint yet) never leaves an apology
+ * sitting on the highest-traffic page. It lights up on its own once the
+ * endpoint ships. See News.tsx for the explicit "not wired up yet" state.
+ */
+export function Headlines() {
+  const { data, isPending, isError } = useNews();
+  const articles = data?.data.articles ?? [];
+
+  if (isPending || isError || articles.length === 0) return null;
+
+  return <HeadlineRundown articles={articles.slice(0, 4)} />;
+}
+
+/**
+ * A separate component, not an inline branch of Headlines: useReveal's
+ * ScrollTrigger attaches to whatever DOM node exists on this component's
+ * first render. Toggling the same component instance between null and real
+ * content would leave the ref unset on mount and the animation would never
+ * arm - see FixtureList / DayGroups / Table / PlayerGrid for the same split.
+ */
+function HeadlineRundown({ articles }: { articles: NewsArticle[] }) {
+  const scope = useReveal<HTMLElement>({ y: 20, stagger: 0.06 });
+  const [lead, ...rest] = articles;
+  if (!lead) return null;
+
+  return (
+    <section ref={scope} className="u-frame border-b border-ink-line py-14 sm:py-20">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="js-reveal u-eyebrow text-ember">Headlines</p>
+          <h2 className="js-reveal u-display mt-3 text-title">Around the leagues</h2>
+        </div>
+        <Link to="/news" className="js-reveal u-display text-xs text-ember hover:text-ember-bright">
+          All news →
+        </Link>
+      </div>
+
+      <div className="js-reveal grid gap-px bg-ink-line md:grid-cols-[1.3fr_1fr]">
+        <LeadHeadline article={lead} />
+        {rest.length > 0 && (
+          <div className="flex flex-col gap-px bg-ink-line">
+            {rest.map((article) => (
+              <MinorHeadline key={article.id} article={article} />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function LeadHeadline({ article }: { article: NewsArticle }) {
+  const Wrapper = article.url ? "a" : "div";
+
+  return (
+    <Wrapper
+      {...(article.url
+        ? { href: article.url, target: "_blank", rel: "noopener noreferrer" }
+        : {})}
+      className="group block bg-ink p-6 transition-colors duration-500 ease-out hover:bg-ink-raised sm:p-8"
+    >
+      <p className="u-eyebrow text-ember">
+        {article.source ?? "Esquinazo"} · {articleDate(article.publishedAt)}
+      </p>
+      <h3 className="u-display mt-3 text-title leading-tight text-ink-bright transition-colors duration-300 group-hover:text-ember">
+        {article.title}
+      </h3>
+      {article.summary && (
+        <p className="mt-3 line-clamp-2 max-w-lg text-sm leading-relaxed text-ink-muted">
+          {article.summary}
+        </p>
+      )}
+    </Wrapper>
+  );
+}
+
+function MinorHeadline({ article }: { article: NewsArticle }) {
+  const Wrapper = article.url ? "a" : "div";
+
+  return (
+    <Wrapper
+      {...(article.url
+        ? { href: article.url, target: "_blank", rel: "noopener noreferrer" }
+        : {})}
+      className="group block bg-ink px-6 py-5 transition-colors duration-300 hover:bg-ink-raised"
+    >
+      <p className="u-eyebrow">
+        {article.source ?? "Esquinazo"} · {articleDate(article.publishedAt)}
+      </p>
+      <h4 className="mt-2 truncate text-sm font-semibold text-ink-bright transition-colors duration-300 group-hover:text-ember">
+        {article.title}
+      </h4>
+    </Wrapper>
+  );
+}

@@ -15,10 +15,13 @@
  */
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
+  BatchWriteCommand,
   DynamoDBDocumentClient,
   GetCommand,
   PutCommand,
+  QueryCommand,
 } from "@aws-sdk/lib-dynamodb";
+import type { Headline } from "./news-api";
 
 const DEFAULT_TTL_SECONDS = 300;
 
@@ -248,4 +251,126 @@ export async function withCache<T>(
 
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/* -------------------------------------------------------------------------
+ * News headlines cache.
+ *
+ * A separate schema from the generic getCached/putCached above: one item per
+ * article (PK "NEWS#HEADLINES", SK "ARTICLE#<index>") rather than one item
+ * holding a whole array. This is what lets a future feature read or update a
+ * single headline without touching the rest. All items in a batch share the
+ * same expires_at, written together in putCachedHeadlines - freshness is
+ * checked once per read, not per item.
+ * ---------------------------------------------------------------------- */
+
+const HEADLINES_PK = "NEWS#HEADLINES";
+const ARTICLE_SK_PREFIX = "ARTICLE#";
+
+/**
+ * Zero-padded so SK sorts correctly as a string - "ARTICLE#10" would sort
+ * before "ARTICLE#2" otherwise. Three digits covers any pageSize NewsAPI
+ * could plausibly return (its own hard cap is 100).
+ */
+function articleSortKey(index: number): string {
+  return `${ARTICLE_SK_PREFIX}${String(index).padStart(3, "0")}`;
+}
+
+interface HeadlineDynamoItem extends Headline {
+  PK: string;
+  SK: string;
+  cached_at: string;
+  expires_at: number;
+}
+
+export interface HeadlinesCacheResult {
+  articles: Headline[];
+  cachedAt?: string;
+  expiresAt: number;
+  /** True when the entry is past expires_at but has not been swept yet. */
+  stale: boolean;
+}
+
+/** Reads the cached headline set, if any. Returns null on a miss. */
+export async function getCachedHeadlines(): Promise<HeadlinesCacheResult | null> {
+  try {
+    const result = await client.send(
+      new QueryCommand({
+        TableName: tableName(),
+        KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
+        ExpressionAttributeValues: { ":pk": HEADLINES_PK, ":prefix": ARTICLE_SK_PREFIX },
+        ScanIndexForward: true,
+        ConsistentRead: false,
+      }),
+    );
+
+    const items = (result.Items ?? []) as HeadlineDynamoItem[];
+    const first = items[0];
+    if (!first) {
+      return null;
+    }
+
+    return {
+      articles: items.map(({ PK, SK, cached_at, expires_at, ...headline }) => headline),
+      cachedAt: first.cached_at,
+      expiresAt: first.expires_at,
+      stale: first.expires_at <= nowSeconds(),
+    };
+  } catch (error) {
+    console.error("headlines cache read failed", { error: errorMessage(error) });
+    return null;
+  }
+}
+
+/**
+ * Replaces the cached headline set. Existing items are deleted first, even
+ * indices beyond the new set's length - otherwise a fetch that returns fewer
+ * articles than last time (upstream having less to say, not a failure) would
+ * leave old higher-index items behind, silently mixed into future reads once
+ * their own older expires_at makes them look independently stale.
+ */
+export async function putCachedHeadlines(articles: Headline[], ttlSeconds: number): Promise<void> {
+  try {
+    const existing = await client.send(
+      new QueryCommand({
+        TableName: tableName(),
+        KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
+        ExpressionAttributeValues: { ":pk": HEADLINES_PK, ":prefix": ARTICLE_SK_PREFIX },
+        ProjectionExpression: "PK, SK",
+        ConsistentRead: false,
+      }),
+    );
+
+    const expiresAt = nowSeconds() + ttlSeconds;
+    const cachedAt = new Date().toISOString();
+
+    const deletes = (existing.Items ?? []).map((item) => ({
+      DeleteRequest: { Key: { PK: item.PK, SK: item.SK } },
+    }));
+
+    const puts = articles.map((article, index) => ({
+      PutRequest: {
+        Item: {
+          PK: HEADLINES_PK,
+          SK: articleSortKey(index),
+          ...article,
+          cached_at: cachedAt,
+          expires_at: expiresAt,
+        },
+      },
+    }));
+
+    const requests = [...deletes, ...puts];
+
+    // BatchWriteCommand caps at 25 items per call. pageSize=10 keeps today's
+    // writes well under that, but chunk anyway so a future pageSize increase
+    // doesn't silently drop writes past the limit.
+    for (let i = 0; i < requests.length; i += 25) {
+      const chunk = requests.slice(i, i + 25);
+      if (chunk.length === 0) continue;
+      await client.send(new BatchWriteCommand({ RequestItems: { [tableName()]: chunk } }));
+    }
+  } catch (error) {
+    console.error("headlines cache write failed", { error: errorMessage(error) });
+  }
 }

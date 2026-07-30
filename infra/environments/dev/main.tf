@@ -5,8 +5,8 @@
 #
 #   s3-cloudfront -> React bundle on a private bucket behind CloudFront
 #   dynamodb      -> TTL cache for upstream football data
-#   lambda        -> fixtures / standings / players / transfers / refresh
-#   api-gateway   -> HTTP API routing /fixtures, /standings, /players, /transfers
+#   lambda        -> fixtures / standings / players / transfers / news / refresh
+#   api-gateway   -> HTTP API routing /fixtures, /standings, /players, /transfers, /news
 #   eventbridge   -> 5-minute schedule invoking the refresh function
 #   route53       -> DNS, skipped entirely while domain_name is "localhost"
 #
@@ -59,6 +59,19 @@ locals {
     refresh = {
       source_dir = "${local.lambda_source_root}/refresh"
       timeout    = 60
+    }
+  }
+
+  # Kept out of api_functions/api_function_names: unlike those, this function
+  # needs its own environment_variables. NEWS_API_KEY is scoped to just this
+  # function rather than added to common_environment_variables, so it is not
+  # readable from every other Lambda's console/env.
+  news_function = {
+    news = {
+      source_dir = "${local.lambda_source_root}/news"
+      environment_variables = {
+        NEWS_API_KEY = var.news_api_key
+      }
     }
   }
 
@@ -118,7 +131,7 @@ module "functions" {
 
   environment = var.environment
 
-  functions = merge(local.api_functions, local.refresh_function)
+  functions = merge(local.api_functions, local.news_function, local.refresh_function)
 
   default_memory_size  = 128
   default_architecture = "arm64"
@@ -146,13 +159,22 @@ module "api" {
 
   environment = var.environment
 
-  routes = {
-    for name in local.api_function_names : "/${name}" => {
-      lambda_function_name = module.functions.function_names[name]
-      lambda_invoke_arn    = module.functions.invoke_arns[name]
-      methods              = ["GET"]
-    }
-  }
+  routes = merge(
+    {
+      for name in local.api_function_names : "/${name}" => {
+        lambda_function_name = module.functions.function_names[name]
+        lambda_invoke_arn    = module.functions.invoke_arns[name]
+        methods              = ["GET"]
+      }
+    },
+    {
+      "/news" = {
+        lambda_function_name = module.functions.function_names["news"]
+        lambda_invoke_arn    = module.functions.invoke_arns["news"]
+        methods              = ["GET"]
+      }
+    },
+  )
 
   throttling_rate_limit  = var.api_throttling_rate_limit
   throttling_burst_limit = var.api_throttling_burst_limit

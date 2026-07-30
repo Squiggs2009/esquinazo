@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --nav-h: 4.5rem;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-ink text-ink-bright font-body antialiased;
+    /* Floodlight wash from above, plus a faint diagonal weave that reads as
+       crowd texture rather than a decorative gradient. */
+    background-image: theme("backgroundImage.floodlight"), theme("backgroundImage.stands");
+    background-attachment: fixed;
+    background-repeat: no-repeat, repeat;
+  }
+
+  /* Scores and tables must never shift width as digits change. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  ::selection {
+    @apply bg-ember text-ink;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ember ring-offset-2 ring-offset-ink;
+  }
+
+  /* Thin, unobtrusive scrollbar in keeping with the hairline rules. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2a2725 #0a0a0a;
+  }
+}
+
+@layer components {
+  /* Stadium signage: wide, heavy, tightly tracked. */
+  .u-display {
+    font-family: theme("fontFamily.display");
+    font-variation-settings: "wdth" 112, "wght" 800;
+    text-transform: uppercase;
+  }
+
+  .u-eyebrow {
+    @apply text-eyebrow uppercase text-ink-muted;
+    font-family: theme("fontFamily.display");
+    font-variation-settings: "wdth" 108, "wght" 600;
+  }
+
+  /* Hairline rule used instead of card borders in most places. */
+  .u-rule {
+    @apply border-ink-line;
+  }
+
+  .u-frame {
+    @apply mx-auto w-full max-w-frame px-gutter;
+  }
+
+  /* Broadcast lower-third: a skewed ember slab behind a label. */
+  .u-slab {
+    position: relative;
+    isolation: isolate;
+  }
+  .u-slab::before {
+    content: "";
+    position: absolute;
+    inset: -0.15em -0.5em;
+    background: theme("colors.ember.DEFAULT");
+    transform: skewX(-12deg);
+    z-index: -1;
+  }
+
+  .u-link {
+    @apply relative text-ink-muted transition-colors duration-200 hover:text-ink-bright;
+  }
+
+  .u-btn-donate {
+    @apply inline-flex items-center gap-2 bg-ember px-4 py-2 text-sm font-bold uppercase
+           tracking-wider text-ink transition-all duration-300 ease-out
+           hover:bg-ember-bright hover:shadow-ember;
+    font-family: theme("fontFamily.display");
+    font-variation-settings: "wdth" 105, "wght" 700;
+  }
+
+  /* Reveal targets start hidden only when JS will animate them; the .is-ready
+     class is set by the motion layer so no-JS users still see content. */
+  .js-reveal {
+    opacity: 1;
+  }
+  html.is-animated .js-reveal {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  html.is-animated .js-reveal {
+    opacity: 1;
+  }
+}

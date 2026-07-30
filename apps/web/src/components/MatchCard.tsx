@@ -1,0 +1,83 @@
+import { Link } from "react-router-dom";
+import { TeamBadge } from "./Badges";
+import { isLive, type Match } from "@/lib/api";
+import { kickoffTime, scoreline, statusLabel } from "@/lib/format";
+
+/**
+ * A fixture row rather than a boxed card: hairline separators, the scoreline
+ * set in tabular figures on the right, and a live match marked by an ember bar
+ * down its leading edge. Hover lifts the row and lights that edge.
+ */
+export function MatchCard({ match }: { match: Match }) {
+  const live = isLive(match);
+  const { home, away } = scoreline(match);
+  const played = home !== null && away !== null;
+  const finished = match.status === "FINISHED";
+
+  // Dim the losing side once a result stands - the eye should find the winner
+  // without reading the numbers.
+  const homeLost = finished && played && home < away;
+  const awayLost = finished && played && away < home;
+
+  return (
+    <Link
+      to={`/match/${match.id}`}
+      className="group relative block border-b border-ink-line transition-all duration-500 ease-out
+                 hover:z-10 hover:-translate-y-0.5 hover:bg-ink-raised hover:shadow-ember
+                 focus-visible:z-10 focus-visible:bg-ink-raised"
+    >
+      {/* Leading edge: always present, only visible when live or hovered. */}
+      <span
+        className={`absolute inset-y-0 left-0 w-[3px] transition-all duration-500 ease-out
+                    ${live ? "bg-ember" : "bg-ember/0 group-hover:bg-ember/60"}`}
+        aria-hidden="true"
+      />
+
+      <div className="flex items-center gap-4 py-4 pl-5 pr-4 sm:gap-6 sm:pl-7 sm:pr-6">
+        <div className="w-12 shrink-0 sm:w-16">
+          {live ? (
+            <span className="u-eyebrow flex items-center gap-1.5 text-ember-bright">
+              <span className="h-1.5 w-1.5 animate-live rounded-full bg-ember-bright" />
+              Live
+            </span>
+          ) : (
+            <span className="tnum block text-sm text-ink-muted">
+              {finished ? statusLabel(match.status) : kickoffTime(match.utcDate)}
+            </span>
+          )}
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+          <TeamLine team={match.homeTeam} dimmed={homeLost} />
+          <TeamLine team={match.awayTeam} dimmed={awayLost} />
+        </div>
+
+        <div className="shrink-0 text-right">
+          {played ? (
+            <div className="tnum u-display flex flex-col gap-2.5 text-lg leading-none">
+              <span className={homeLost ? "text-ink-muted" : "text-ink-bright"}>{home}</span>
+              <span className={awayLost ? "text-ink-muted" : "text-ink-bright"}>{away}</span>
+            </div>
+          ) : (
+            <span className="u-eyebrow text-ink-muted">{statusLabel(match.status)}</span>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function TeamLine({ team, dimmed }: { team: Parameters<typeof TeamBadge>[0]["team"]; dimmed: boolean }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <TeamBadge team={team} size="sm" className={dimmed ? "opacity-45" : ""} />
+      <span
+        className={`truncate text-sm font-semibold sm:text-base ${
+          dimmed ? "text-ink-muted" : "text-ink-bright"
+        }`}
+      >
+        {team.shortName ?? team.name}
+      </span>
+    </div>
+  );
+}
