@@ -1,0 +1,10 @@
+{
+  // Without this, VS Code parses .tfvars files with the "terraform" language
+  // mode, which rejects bare top-level attributes and flags every assignment as
+  // "Unexpected attribute". The "terraform-vars" mode is the one that
+  // understands variable-value files.
+  "files.associations": {
+    "*.tfvars": "terraform-vars",
+    "*.tfvars.example": "terraform-vars"
+  }
+}

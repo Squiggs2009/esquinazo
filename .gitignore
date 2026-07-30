@@ -1,0 +1,38 @@
+# === LAMBDA BUILD ARTIFACTS ===
+apps/api/dist/
+infra/modules/lambda/.build/
+
+# === NODE ===
+node_modules/
+
+# === TERRAFORM ===
+# Provider binaries and module caches - hundreds of MB, machine-specific.
+# NOTE: this matches only a directory named .terraform, so the sibling
+# .terraform.lock.hcl is deliberately NOT ignored: it pins provider versions
+# and belongs in the repo.
+.terraform/
+
+# State and backups. These can contain secrets in plaintext (the dev state
+# holds football_data_api_key) and must never be committed.
+*.tfstate
+*.tfstate.*
+
+# Variable files hold real credentials. terraform.tfvars.example ends in
+# .example so it does not match this pattern and stays tracked.
+*.tfvars
+
+# Saved plans - may embed secrets from state.
+*.tfplan
+*.tfplan.*
+
+# Crash logs and CLI config.
+crash.log
+crash.*.log
+.terraformrc
+terraform.rc
+
+# Local overrides are per-developer by design.
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

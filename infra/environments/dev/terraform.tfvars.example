@@ -1,0 +1,36 @@
+###############################################################################
+# dev - example variable values
+#
+# Copy to terraform.tfvars and fill in. terraform.tfvars holds a real API key,
+# so keep it out of version control.
+###############################################################################
+
+domain_name           = "localhost"
+environment           = "dev"
+aws_region            = "us-east-1"
+football_data_api_key = "YOUR_API_KEY_HERE"
+
+###############################################################################
+# Optional
+###############################################################################
+
+# Required only once domain_name is a real domain. The CloudFront certificate
+# must be issued in us-east-1; the API certificate in aws_region.
+# cloudfront_certificate_arn = "arn:aws:acm:us-east-1:572146235838:certificate/..."
+# api_certificate_arn        = "arn:aws:acm:us-east-1:572146235838:certificate/..."
+
+# Built Lambda code, one subdirectory per function. Relative to this directory.
+# lambda_source_dir = "../../../apps/api/dist"
+
+# S3 bucket names are globally unique - override if the default is taken.
+# web_bucket_name = "esquinazo-dev-web-572146235838"
+
+# refresh_schedule_expression = "rate(5 minutes)"
+# api_throttling_rate_limit   = 100
+# api_throttling_burst_limit  = 200
+# cache_ttl_seconds           = 300
+# log_retention_days          = 14
+
+# tags = {
+#   Owner = "enriquez"
+# }
