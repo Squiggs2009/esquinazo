@@ -5,6 +5,7 @@ import {
   getNews,
   getSquad,
   getStandings,
+  getTeams,
   getTransfers,
   type FixturesQuery,
 } from "./api";
@@ -37,6 +38,15 @@ export function useStandings(competition: string) {
     queryKey: ["standings", competition],
     queryFn: () => getStandings({ competition }),
     staleTime: 5 * MINUTE,
+    retry: retryPolicy,
+  });
+}
+
+export function useTeams(competition: string) {
+  return useQuery({
+    queryKey: ["teams", competition],
+    queryFn: () => getTeams(competition),
+    staleTime: 60 * MINUTE,
     retry: retryPolicy,
   });
 }

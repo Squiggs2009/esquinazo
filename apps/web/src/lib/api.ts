@@ -184,6 +184,11 @@ export interface NewsResponse {
   articles: NewsArticle[];
 }
 
+export interface TeamsResponse {
+  competition?: Competition;
+  teams: Team[];
+}
+
 /* ------------------------------------------------------------------ *
  * Endpoints
  * ------------------------------------------------------------------ */
@@ -217,6 +222,10 @@ export const getTransfers = (personId: number) =>
  * the moment one ships; until then it 404s and the page shows its empty state.
  */
 export const getNews = () => apiGet<NewsResponse>("/news");
+
+/** Clubs in a competition, for the Players page's league-driven club picker. */
+export const getTeams = (competition: string) =>
+  apiGet<TeamsResponse>("/teams", { competition });
 
 /* ------------------------------------------------------------------ *
  * Leagues offered in the filters. Codes are football-data.org's.

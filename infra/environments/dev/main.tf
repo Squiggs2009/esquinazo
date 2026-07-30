@@ -5,8 +5,8 @@
 #
 #   s3-cloudfront -> React bundle on a private bucket behind CloudFront
 #   dynamodb      -> TTL cache for upstream football data
-#   lambda        -> fixtures / standings / players / transfers / news / refresh
-#   api-gateway   -> HTTP API routing /fixtures, /standings, /players, /transfers, /news
+#   lambda        -> fixtures / standings / players / transfers / teams / news / refresh
+#   api-gateway   -> HTTP API routing /fixtures, /standings, /players, /transfers, /teams, /news
 #   eventbridge   -> 5-minute schedule invoking the refresh function
 #   route53       -> DNS, skipped entirely while domain_name is "localhost"
 #
@@ -43,7 +43,7 @@ locals {
 
   # Functions fronted by the HTTP API. "refresh" is deliberately excluded: it
   # is only ever invoked by EventBridge.
-  api_function_names = ["fixtures", "standings", "players", "transfers"]
+  api_function_names = ["fixtures", "standings", "players", "transfers", "teams"]
 
   # Relative source dirs are resolved from this directory, not the caller's cwd.
   lambda_source_root = "${path.module}/${var.lambda_source_dir}"

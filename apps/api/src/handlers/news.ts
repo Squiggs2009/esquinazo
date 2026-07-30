@@ -19,6 +19,10 @@ import { getTopHeadlines, type Headline } from "../lib/news-api";
 
 const TTL_SECONDS = 3600;
 
+/** Exact NewsAPI query - also selects the cache partition (see getCachedHeadlines/putCachedHeadlines). */
+const QUERY_STRING =
+  'soccer OR "premier league" OR "champions league" OR "la liga" OR "serie a" OR bundesliga OR "world cup" OR "euro" OR "fa cup" OR "ligue 1" OR "copa del rey" OR "carabao cup"';
+
 interface ResponseArticle {
   id: string;
   title: string;
@@ -41,7 +45,7 @@ export const handler = async (
   context: Context,
 ): Promise<APIGatewayProxyResultV2> => {
   const requestId = context.awsRequestId;
-  const cached = await getCachedHeadlines();
+  const cached = await getCachedHeadlines(QUERY_STRING);
 
   if (cached && !cached.stale) {
     return json(
@@ -60,12 +64,11 @@ export const handler = async (
 
   try {
     const headlines = await getTopHeadlines({
-      query:
-        'soccer OR "premier league" OR "champions league" OR "la liga" OR "serie a" OR bundesliga OR "world cup" OR "euro" OR "fa cup" OR "ligue 1" OR "copa del rey" OR "carabao cup"',
+      query: QUERY_STRING,
       pageSize: 10,
       language: "en",
     });
-    await putCachedHeadlines(headlines, TTL_SECONDS);
+    await putCachedHeadlines(headlines, TTL_SECONDS, QUERY_STRING);
 
     return json(
       {

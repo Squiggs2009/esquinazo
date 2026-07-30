@@ -9,7 +9,7 @@ import { build } from "esbuild";
 import { rm } from "node:fs/promises";
 
 /** Must stay in sync with the functions map in the dev environment. */
-const FUNCTIONS = ["fixtures", "standings", "players", "transfers", "refresh", "news"];
+const FUNCTIONS = ["fixtures", "standings", "players", "transfers", "refresh", "news", "teams"];
 
 await rm("dist", { recursive: true, force: true });
 

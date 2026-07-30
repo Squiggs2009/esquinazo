@@ -13,6 +13,7 @@
  *      log and fall through to the upstream API rather than failing the
  *      request.
  */
+import { createHash } from "node:crypto";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   BatchWriteCommand,
@@ -22,6 +23,10 @@ import {
   QueryCommand,
 } from "@aws-sdk/lib-dynamodb";
 import type { Headline } from "./news-api";
+
+function hashQuery(q: string): string {
+  return createHash("sha256").update(q).digest("hex").slice(0, 12);
+}
 
 const DEFAULT_TTL_SECONDS = 300;
 
@@ -257,14 +262,21 @@ export function errorMessage(error: unknown): string {
  * News headlines cache.
  *
  * A separate schema from the generic getCached/putCached above: one item per
- * article (PK "NEWS#HEADLINES", SK "ARTICLE#<index>") rather than one item
- * holding a whole array. This is what lets a future feature read or update a
- * single headline without touching the rest. All items in a batch share the
- * same expires_at, written together in putCachedHeadlines - freshness is
- * checked once per read, not per item.
+ * article (PK "NEWS#HEADLINES#<hash of the query>", SK "ARTICLE#<index>")
+ * rather than one item holding a whole array. This is what lets a future
+ * feature read or update a single headline without touching the rest. The PK
+ * is derived from the NewsAPI query string rather than fixed, so changing the
+ * query (e.g. broadening or narrowing the search) naturally lands on a fresh
+ * partition instead of silently reusing results cached under the old query.
+ * All items in a batch share the same expires_at, written together in
+ * putCachedHeadlines - freshness is checked once per read, not per item.
  * ---------------------------------------------------------------------- */
 
-const HEADLINES_PK = "NEWS#HEADLINES";
+/** Builds the cache partition for a given NewsAPI query string. */
+function headlinesPartitionKey(query: string): string {
+  return `NEWS#HEADLINES#${hashQuery(query)}`;
+}
+
 const ARTICLE_SK_PREFIX = "ARTICLE#";
 
 /**
@@ -291,14 +303,20 @@ export interface HeadlinesCacheResult {
   stale: boolean;
 }
 
-/** Reads the cached headline set, if any. Returns null on a miss. */
-export async function getCachedHeadlines(): Promise<HeadlinesCacheResult | null> {
+/**
+ * Reads the cached headline set for a given query, if any. Returns null on a
+ * miss. `query` should be the exact NewsAPI query string the caller would
+ * otherwise fetch with - it selects which partition is read, not just a label.
+ */
+export async function getCachedHeadlines(query = ""): Promise<HeadlinesCacheResult | null> {
+  const pk = headlinesPartitionKey(query);
+
   try {
     const result = await client.send(
       new QueryCommand({
         TableName: tableName(),
         KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
-        ExpressionAttributeValues: { ":pk": HEADLINES_PK, ":prefix": ARTICLE_SK_PREFIX },
+        ExpressionAttributeValues: { ":pk": pk, ":prefix": ARTICLE_SK_PREFIX },
         ScanIndexForward: true,
         ConsistentRead: false,
       }),
@@ -323,19 +341,28 @@ export async function getCachedHeadlines(): Promise<HeadlinesCacheResult | null>
 }
 
 /**
- * Replaces the cached headline set. Existing items are deleted first, even
- * indices beyond the new set's length - otherwise a fetch that returns fewer
- * articles than last time (upstream having less to say, not a failure) would
- * leave old higher-index items behind, silently mixed into future reads once
- * their own older expires_at makes them look independently stale.
+ * Replaces the cached headline set for a given query. `query` must be the same
+ * string passed to getCachedHeadlines for these articles to be found again -
+ * it selects the partition being written, not just a label. Existing items in
+ * that partition are deleted first, even indices beyond the new set's length -
+ * otherwise a fetch that returns fewer articles than last time (upstream
+ * having less to say, not a failure) would leave old higher-index items
+ * behind, silently mixed into future reads once their own older expires_at
+ * makes them look independently stale.
  */
-export async function putCachedHeadlines(articles: Headline[], ttlSeconds: number): Promise<void> {
+export async function putCachedHeadlines(
+  articles: Headline[],
+  ttlSeconds: number,
+  query = "",
+): Promise<void> {
+  const pk = headlinesPartitionKey(query);
+
   try {
     const existing = await client.send(
       new QueryCommand({
         TableName: tableName(),
         KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
-        ExpressionAttributeValues: { ":pk": HEADLINES_PK, ":prefix": ARTICLE_SK_PREFIX },
+        ExpressionAttributeValues: { ":pk": pk, ":prefix": ARTICLE_SK_PREFIX },
         ProjectionExpression: "PK, SK",
         ConsistentRead: false,
       }),
@@ -351,7 +378,7 @@ export async function putCachedHeadlines(articles: Headline[], ttlSeconds: numbe
     const puts = articles.map((article, index) => ({
       PutRequest: {
         Item: {
-          PK: HEADLINES_PK,
+          PK: pk,
           SK: articleSortKey(index),
           ...article,
           cached_at: cachedAt,

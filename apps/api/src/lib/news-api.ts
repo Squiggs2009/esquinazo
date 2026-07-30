@@ -75,7 +75,7 @@ export async function getTopHeadlines(params: TopHeadlinesParams = {}): Promise<
   const { query = "football", pageSize = 10, language = "en", sortBy = "publishedAt" } = params;
 
   const url = new URL(BASE_URL);
-  url.searchParams.set("q", query);
+  url.searchParams.set("qInTitle", query);
   url.searchParams.set("pageSize", String(pageSize));
   url.searchParams.set("language", language);
   url.searchParams.set("sortBy", sortBy);
