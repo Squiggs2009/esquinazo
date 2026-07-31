@@ -55,6 +55,12 @@ export default {
           "radial-gradient(120% 80% at 50% -10%, rgba(204,85,0,0.22) 0%, rgba(139,0,0,0.10) 32%, rgba(10,10,10,0) 68%)",
         stands:
           "repeating-linear-gradient(115deg, rgba(245,245,245,0.028) 0px, rgba(245,245,245,0.028) 1px, transparent 1px, transparent 7px)",
+        // Screen-printed poster dot screen - sparse orange stippling, not a wash.
+        halftone: "radial-gradient(rgba(204,85,0,0.5) 1px, transparent 1.5px)",
+      },
+
+      backgroundSize: {
+        halftone: "9px 9px",
       },
 
       transitionTimingFunction: {

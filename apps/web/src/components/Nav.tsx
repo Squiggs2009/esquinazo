@@ -37,7 +37,7 @@ export function Nav() {
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-colors duration-500 ease-out
-                  ${scrolled || open ? "border-b border-ink-line bg-ink/92 backdrop-blur-md" : "border-b border-transparent"}`}
+                  ${scrolled || open ? "border-b-2 border-ink-line bg-ink/92 backdrop-blur-md" : "border-b-2 border-transparent"}`}
     >
       <div className="u-frame flex h-[var(--nav-h)] items-center justify-between gap-6">
         <Wordmark />
@@ -104,9 +104,9 @@ export function Nav() {
       {/* Mobile drawer: full-height panel, links at display size. */}
       <div
         id="mobile-menu"
-        hidden={!open}
-        className="u-frame flex h-[calc(100dvh-var(--nav-h))] flex-col justify-between
-                   border-t border-ink-line bg-ink pb-10 pt-8 md:hidden"
+        className={`u-frame flex h-[calc(100dvh-var(--nav-h))] flex-col justify-between
+              overflow-y-auto border-t border-ink-line bg-ink pb-10 pt-8 md:hidden
+              ${!open ? "hidden" : ""}`}
       >
         <ul className="flex flex-col gap-1">
           {LINKS.map((link) => (

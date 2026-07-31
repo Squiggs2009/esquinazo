@@ -47,7 +47,7 @@ function HeadlineRundown({ articles }: { articles: NewsArticle[] }) {
       <div className="js-reveal grid gap-px bg-ink-line md:grid-cols-[1.3fr_1fr]">
         <LeadHeadline article={lead} />
         {rest.length > 0 && (
-          <div className="flex flex-col gap-px bg-ink-line">
+          <div className="flex min-w-0 flex-col gap-px bg-ink-line">
             {rest.map((article) => (
               <MinorHeadline key={article.id} article={article} />
             ))}
@@ -66,12 +66,12 @@ function LeadHeadline({ article }: { article: NewsArticle }) {
       {...(article.url
         ? { href: article.url, target: "_blank", rel: "noopener noreferrer" }
         : {})}
-      className="group block bg-ink p-6 transition-colors duration-500 ease-out hover:bg-ink-raised sm:p-8"
+      className="group block min-w-0 bg-ink p-6 transition-colors duration-500 ease-out hover:bg-ink-raised sm:p-8"
     >
       <p className="u-eyebrow text-ember">
         {article.source ?? "Esquinazo"} · {articleDate(article.publishedAt)}
       </p>
-      <h3 className="u-display mt-3 text-title leading-tight text-ink-bright transition-colors duration-300 group-hover:text-ember">
+      <h3 className="u-display mt-3 break-words text-title leading-tight text-ink-bright transition-colors duration-300 group-hover:text-ember">
         {article.title}
       </h3>
       {article.summary && (
@@ -91,7 +91,7 @@ function MinorHeadline({ article }: { article: NewsArticle }) {
       {...(article.url
         ? { href: article.url, target: "_blank", rel: "noopener noreferrer" }
         : {})}
-      className="group block bg-ink px-6 py-5 transition-colors duration-300 hover:bg-ink-raised"
+      className="group block min-w-0 bg-ink px-6 py-5 transition-colors duration-300 hover:bg-ink-raised"
     >
       <p className="u-eyebrow">
         {article.source ?? "Esquinazo"} · {articleDate(article.publishedAt)}

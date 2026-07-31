@@ -1,9 +1,9 @@
 import { LEAGUES } from "@/lib/api";
 
 /**
- * League filter. A vertical rail on desktop; on mobile it becomes a horizontal
- * scroller rather than being hidden or collapsed into a select - switching
- * league is the primary action on these pages.
+ * League filter. A vertical rail on desktop; on mobile it collapses into a
+ * select instead, so every league is one tap away rather than a drag through
+ * a horizontal scroller.
  */
 export function LeagueRail({
   value,
@@ -18,10 +18,23 @@ export function LeagueRail({
     <nav aria-label={label} className="lg:sticky lg:top-[calc(var(--nav-h)+2rem)]">
       <p className="u-eyebrow mb-4 hidden lg:block">{label}</p>
 
-      <ul
-        className="-mx-gutter flex gap-1.5 overflow-x-auto px-gutter pb-2
-                   lg:mx-0 lg:flex-col lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0"
-      >
+      <label className="block lg:hidden">
+        <span className="sr-only">{label}</span>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="w-full border border-ink-line bg-ink-raised px-4 py-3 text-sm text-ink-bright
+                     transition-colors duration-300 hover:border-ink-muted focus:border-ember"
+        >
+          {LEAGUES.map((league) => (
+            <option key={league.code} value={league.code}>
+              {league.code} · {league.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <ul className="hidden lg:flex lg:flex-col lg:mx-0 lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0">
         {LEAGUES.map((league) => {
           const active = league.code === value;
 

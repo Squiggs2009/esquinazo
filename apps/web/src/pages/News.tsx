@@ -101,7 +101,7 @@ function ArticleCard({ article, featured = false }: { article: NewsArticle; feat
           </p>
 
           <h2
-            className={`u-display mt-3 text-ink-bright transition-colors duration-300
+            className={`u-display mt-3 break-words text-ink-bright transition-colors duration-300
                         group-hover:text-ember ${featured ? "text-title" : "text-base leading-snug"}`}
           >
             {article.title}

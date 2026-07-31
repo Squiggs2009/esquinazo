@@ -70,7 +70,10 @@ export function PageHeader({
     <header ref={ref} className="u-frame pb-10 pt-[calc(var(--nav-h)+3.5rem)] sm:pb-12">
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="js-head u-eyebrow text-ember">{eyebrow}</p>
+          <p className="js-head u-eyebrow flex items-center gap-2 text-ember-bright">
+            <span className="h-2 w-2 shrink-0 bg-ember" aria-hidden="true" />
+            {eyebrow}
+          </p>
           <h1 className="js-head u-display mt-4 text-display text-ink-bright">{title}</h1>
           {lede && (
             <p className="js-head mt-4 max-w-lg text-sm leading-relaxed text-ink-muted sm:text-base">

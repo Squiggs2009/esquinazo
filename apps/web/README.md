@@ -131,12 +131,13 @@ unwraps `data` in `apiGet`.
 ## Deploying
 
 ```bash
-npm run build
-aws s3 sync dist/ s3://$(terraform -chdir=../../infra/environments/dev output -raw web_bucket_name) --delete
-aws cloudfront create-invalidation \
-  --distribution-id $(terraform -chdir=../../infra/environments/dev output -raw cloudfront_id) \
-  --paths '/*'
+npm run deploy
 ```
+
+This builds, syncs `dist/` to S3, and invalidates CloudFront in one step — the bucket name and
+distribution ID are always read from `terraform output`, never hand-typed, so a mistyped
+distribution ID (e.g. `E2NDZI1129HPPN` vs the real `E2NDZ11129HPPN`) can't happen. See
+[`scripts/deploy.mjs`](./scripts/deploy.mjs).
 
 CloudFront is configured to rewrite 403/404 to `/index.html` with a 200, so client-side routes
 resolve on hard refresh.

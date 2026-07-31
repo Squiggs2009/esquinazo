@@ -82,7 +82,7 @@ export default function Players() {
           }}
         />
 
-        <div>
+        <div className="min-w-0">
           <div className="mb-8 flex flex-col gap-4 border-b border-ink-line pb-6 sm:flex-row sm:items-end">
             <label className="flex-1">
               <span className="u-eyebrow mb-2 block">{league?.name ?? competition} club</span>

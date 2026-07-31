@@ -21,7 +21,12 @@ const COLUMNS = [
 
 export function Footer() {
   return (
-    <footer className="mt-section border-t border-ink-line">
+    <footer className="mt-section">
+      {/* Printed-programme double rule: a heavy line with a fainter echo
+          below it, rather than a single hairline. */}
+      <div className="border-t-2 border-ink-line" aria-hidden="true" />
+      <div className="mt-1 border-t border-ink-line/60" aria-hidden="true" />
+
       <div className="u-frame py-14">
         <div className="grid gap-12 md:grid-cols-[1.4fr_repeat(2,minmax(0,0.7fr))_1.2fr]">
           <div>
@@ -73,7 +78,7 @@ export function Footer() {
               href={SPONSOR.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold text-ember transition-colors duration-300 hover:text-ember-bright"
+              className="font-semibold text-ember-bright transition-colors duration-300 hover:text-ink-bright"
             >
               {SPONSOR.name}
             </a>

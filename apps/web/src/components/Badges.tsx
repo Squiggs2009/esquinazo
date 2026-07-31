@@ -73,7 +73,15 @@ export function PlayerAvatar({
   );
 }
 
-/** Small uppercase label used for competitions, positions and statuses. */
+/**
+ * Small uppercase label used for competitions, positions and statuses.
+ *
+ * tone="live" breaks the pill shape entirely for the .u-stamp treatment - the
+ * one loud device in the system, so it can only mean one thing everywhere it
+ * appears. It assumes an `ink` background (see .u-stamp in index.css); every
+ * current call site (page-header asides, the match header) already sits on
+ * one.
+ */
 export function Chip({
   children,
   tone = "neutral",
@@ -81,10 +89,20 @@ export function Chip({
   children: React.ReactNode;
   tone?: "neutral" | "ember" | "live";
 }) {
+  if (tone === "live") {
+    return (
+      <span className="u-stamp u-eyebrow inline-flex items-center gap-1.5 bg-ink px-2.5 py-1 text-[0.625rem] text-ember-bright">
+        <span className="h-1.5 w-1.5 animate-live rounded-full bg-ember-bright" />
+        {children}
+      </span>
+    );
+  }
+
   const tones = {
     neutral: "text-ink-muted ring-ink-line",
-    ember: "text-ember ring-ember/35",
-    live: "text-ember-bright ring-ember/50",
+    // ember-bright, not ember: this pill can land on a hover surface
+    // (ink-raised), where plain ember falls under the AA floor for small text.
+    ember: "text-ember-bright ring-ember/35",
   };
 
   return (
@@ -92,9 +110,6 @@ export function Chip({
       className={`u-eyebrow inline-flex items-center gap-1.5 rounded-full px-2.5 py-1
                   text-[0.625rem] ring-1 ${tones[tone]}`}
     >
-      {tone === "live" && (
-        <span className="h-1.5 w-1.5 animate-live rounded-full bg-ember-bright" />
-      )}
       {children}
     </span>
   );

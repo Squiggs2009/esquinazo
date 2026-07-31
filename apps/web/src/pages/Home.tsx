@@ -28,7 +28,10 @@ export default function Home() {
       <section className="u-frame py-section">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="u-eyebrow text-ember">{live.length > 0 ? "In play" : "Next up"}</p>
+            <p className="u-eyebrow flex items-center gap-2 text-ember-bright">
+              <span className="h-2 w-2 shrink-0 bg-ember" aria-hidden="true" />
+              {live.length > 0 ? "In play" : "Next up"}
+            </p>
             <h2 className="u-display mt-3 text-title">
               {live.length > 0 ? "Live right now" : "Today's fixtures"}
             </h2>
@@ -116,18 +119,28 @@ function Hero() {
       ref={root}
       className="relative flex min-h-[100svh] flex-col justify-end overflow-hidden pb-16 pt-[var(--nav-h)]"
     >
-      {/* CSS-only stadium: floodlight bloom, turf horizon, crowd weave. */}
+      {/* CSS-only stadium: floodlight bloom, turf horizon, crowd weave, and a
+          band of halftone stippling behind the wordmark - the ambient print
+          texture, kept off the type itself so it never fights legibility. */}
       <div ref={backdrop} className="absolute inset-0 -z-10" aria-hidden="true">
         <div className="absolute inset-0 bg-[radial-gradient(80%_55%_at_50%_0%,rgba(204,85,0,0.30),transparent_62%)]" />
+        <div className="absolute inset-x-0 bottom-[20%] h-72 u-halftone-band opacity-70" />
         <div className="absolute inset-x-0 bottom-0 h-[45%] bg-[linear-gradient(to_top,rgba(29,59,40,0.55),transparent)]" />
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-ember/50 to-transparent" />
         <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_50%_50%,transparent_35%,rgba(10,10,10,0.85))]" />
       </div>
 
       <div className="u-frame">
-        <p className="js-hero u-eyebrow mb-6 text-ember">Europe&apos;s major leagues · live</p>
+        {/* The one stamped-ribbon moment: text sits on a solid, skewed ember
+            slab rather than floating orange text on the backdrop. */}
+        <p className="js-hero u-slab u-eyebrow mb-8 inline-block text-ink">
+          Football&apos;s major leagues · live
+        </p>
 
-        <h1 className="u-display text-hero text-ink-bright" aria-label="Esquinazo">
+        <h1
+          className="u-display text-4xl sm:text-6xl md:text-hero text-ink-bright"
+          aria-label="Esquinazo"
+        >
           <span className="flex flex-wrap overflow-hidden pb-[0.08em]" aria-hidden="true">
             {"ESQUINAZO".split("").map((letter, index) => (
               <span key={index} className="js-letter inline-block">
@@ -139,22 +152,22 @@ function Hero() {
 
         <div className="mt-8 flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
           <p className="js-hero max-w-md text-sm leading-relaxed text-ink-muted sm:text-base">
-            Scores, tables and squads — pulled every minute, cached hard, served without ads or
-            accounts.
+            Scores, tables, squads. No ads, no logins, no nonsense — just what happened and who&apos;s
+            next.
           </p>
 
-          <div className="js-hero flex gap-3">
+          <div className="js-hero flex flex-col gap-3 sm:flex-row">
             <Link
               to="/fixtures"
-              className="u-display bg-ember px-6 py-3 text-xs text-ink transition-all duration-300
-                         ease-out hover:bg-ember-bright hover:shadow-ember"
+              className="u-display w-full bg-ember px-6 py-3 text-center text-xs text-ink transition-all
+                         duration-300 ease-out hover:bg-ember-bright hover:shadow-ember sm:w-auto"
             >
               Today&apos;s matches
             </Link>
             <Link
               to="/standings"
-              className="u-display border border-ink-line px-6 py-3 text-xs text-ink-bright
-                         transition-colors duration-300 hover:border-ember hover:text-ember"
+              className="u-display w-full border border-ink-line px-6 py-3 text-center text-xs text-ink-bright
+                         transition-colors duration-300 hover:border-ember hover:text-ember sm:w-auto"
             >
               Tables
             </Link>
@@ -187,7 +200,7 @@ function Counters({ matchCount }: { matchCount: number }) {
   const scope = useReveal<HTMLElement>({ y: 24 });
 
   return (
-    <section ref={scope} className="u-frame border-b border-ink-line py-14 sm:py-20">
+    <section ref={scope} className="u-frame u-tear py-14 sm:py-20">
       <dl className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">
         <Counter label="Matches tracked" value={Math.max(matchCount, 380)} suffix="+" />
         <Counter label="Leagues" value={8} />
@@ -206,7 +219,7 @@ function Counter({ label, value, suffix = "" }: { label: string; value: number; 
     <div className="js-reveal">
       <dd className="u-display tnum text-display text-ink-bright">
         <span ref={ref}>0</span>
-        <span className="text-ember">{suffix}</span>
+        <span className="text-ember-bright">{suffix}</span>
       </dd>
       <dt className="u-eyebrow mt-3">{label}</dt>
     </div>

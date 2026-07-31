@@ -26,10 +26,13 @@ export function MatchCard({ match }: { match: Match }) {
                  hover:z-10 hover:-translate-y-0.5 hover:bg-ink-raised hover:shadow-ember
                  focus-visible:z-10 focus-visible:bg-ink-raised"
     >
-      {/* Leading edge: always present, only visible when live or hovered. */}
+      {/* Leading edge: always present, only visible when live or hovered. Live
+          gets a soft bleed of its own - a second, quieter glow than the hover
+          shadow, so a live row reads as alive before you've scanned to the
+          label. */}
       <span
-        className={`absolute inset-y-0 left-0 w-[3px] transition-all duration-500 ease-out
-                    ${live ? "bg-ember" : "bg-ember/0 group-hover:bg-ember/60"}`}
+        className={`absolute inset-y-0 left-0 w-1 transition-all duration-500 ease-out
+                    ${live ? "bg-ember shadow-[0_0_16px_2px_rgba(204,85,0,0.55)]" : "bg-ember/0 group-hover:bg-ember/60"}`}
         aria-hidden="true"
       />
 
@@ -54,7 +57,7 @@ export function MatchCard({ match }: { match: Match }) {
 
         <div className="shrink-0 text-right">
           {played ? (
-            <div className="tnum u-display flex flex-col gap-2.5 text-lg leading-none">
+            <div className="tnum u-display flex flex-col gap-2.5 text-xl leading-none sm:text-2xl">
               <span className={homeLost ? "text-ink-muted" : "text-ink-bright"}>{home}</span>
               <span className={awayLost ? "text-ink-muted" : "text-ink-bright"}>{away}</span>
             </div>

@@ -33,7 +33,7 @@ export default function Standings() {
       <div className="u-frame grid gap-10 pb-section lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-14">
         <LeagueRail value={competition} onChange={setCompetition} />
 
-        <div>
+        <div className="min-w-0">
           <h2 className="u-display mb-6 border-b border-ink-line pb-4 text-sm text-ink-bright">
             {league?.name ?? competition}
           </h2>

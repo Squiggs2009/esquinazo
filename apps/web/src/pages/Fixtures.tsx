@@ -38,7 +38,7 @@ export default function Fixtures() {
       <div className="u-frame grid gap-10 pb-section lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-14">
         <LeagueRail value={competition} onChange={setCompetition} />
 
-        <div>
+        <div className="min-w-0">
           {/* Keep the heading stable while a refetch is in flight. */}
           <div className="mb-6 flex items-center justify-between border-b border-ink-line pb-4">
             <h2 className="u-display text-sm text-ink-bright">{league?.name ?? competition}</h2>
