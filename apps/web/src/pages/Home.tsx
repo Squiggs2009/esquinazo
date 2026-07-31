@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import heroImage from "@/assets/images/hero.webp";
 import { ScoreTicker } from "@/components/ScoreTicker";
 import { Headlines } from "@/components/Headlines";
 import { MatchCard } from "@/components/MatchCard";
@@ -119,10 +120,21 @@ function Hero() {
       ref={root}
       className="relative flex min-h-[100svh] flex-col justify-end overflow-hidden pb-16 pt-[var(--nav-h)]"
     >
-      {/* CSS-only stadium: floodlight bloom, turf horizon, crowd weave, and a
-          band of halftone stippling behind the wordmark - the ambient print
-          texture, kept off the type itself so it never fights legibility. */}
-      <div ref={backdrop} className="absolute inset-0 -z-10" aria-hidden="true">
+      {/* Corner-kick photo, duotone-treated (grayscale + a color-blended
+          ink-to-ember gradient) so it reads as part of the stadium-print
+          system rather than a stock photo dropped on top - then the same
+          floodlight bloom, turf horizon, crowd weave, and halftone stippling
+          as before, layered on top and kept off the type itself so nothing
+          fights legibility. */}
+      <div ref={backdrop} className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+        <img
+          src={heroImage}
+          alt=""
+          loading="eager"
+          fetchPriority="high"
+          className="h-full w-full object-cover object-[50%_60%] grayscale"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-ember-dim/80 via-ink/60 to-ink mix-blend-color" />
         <div className="absolute inset-0 bg-[radial-gradient(80%_55%_at_50%_0%,rgba(204,85,0,0.30),transparent_62%)]" />
         <div className="absolute inset-x-0 bottom-[20%] h-72 u-halftone-band opacity-70" />
         <div className="absolute inset-x-0 bottom-0 h-[45%] bg-[linear-gradient(to_top,rgba(29,59,40,0.55),transparent)]" />
