@@ -48,7 +48,7 @@ export default function Standings() {
               detail="Standings appear once the competition has played its opening round. Cup formats may not produce one at all."
             />
           ) : (
-            <Table rows={rows} />
+            <Table key={competition} rows={rows} />
           )}
         </div>
       </div>

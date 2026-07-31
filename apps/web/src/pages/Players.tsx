@@ -161,7 +161,7 @@ export default function Players() {
                   }
                 />
               ) : (
-                <PlayerGrid players={filtered} />
+                <PlayerGrid key={teamId} players={filtered} />
               )}
             </>
           )}

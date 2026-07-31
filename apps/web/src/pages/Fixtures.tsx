@@ -72,7 +72,7 @@ export default function Fixtures() {
               detail={`Nothing scheduled for ${league?.name ?? competition} during ${week.rangeText}. Try the next or previous week - mid-season breaks and international windows leave gaps like this.`}
             />
           ) : (
-            <DayGroups matches={matches} />
+            <DayGroups key={`${competition}-${weekOffset}`} matches={matches} />
           )}
         </div>
       </div>
