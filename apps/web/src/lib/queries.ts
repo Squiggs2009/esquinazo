@@ -33,19 +33,19 @@ export function useFixtures(query: FixturesQuery = {}) {
   });
 }
 
-export function useStandings(competition: string) {
+export function useStandings(league: number) {
   return useQuery({
-    queryKey: ["standings", competition],
-    queryFn: () => getStandings({ competition }),
+    queryKey: ["standings", league],
+    queryFn: () => getStandings({ league }),
     staleTime: 5 * MINUTE,
     retry: retryPolicy,
   });
 }
 
-export function useTeams(competition: string) {
+export function useTeams(league: number) {
   return useQuery({
-    queryKey: ["teams", competition],
-    queryFn: () => getTeams(competition),
+    queryKey: ["teams", league],
+    queryFn: () => getTeams(league),
     staleTime: 60 * MINUTE,
     retry: retryPolicy,
   });
@@ -61,11 +61,11 @@ export function useSquad(teamId: number | undefined) {
   });
 }
 
-export function useTransfers(personId: number | undefined) {
+export function useTransfers(playerId: number | undefined) {
   return useQuery({
-    queryKey: ["transfers", personId],
-    queryFn: () => getTransfers(personId as number),
-    enabled: typeof personId === "number",
+    queryKey: ["transfers", playerId],
+    queryFn: () => getTransfers(playerId as number),
+    enabled: typeof playerId === "number",
     staleTime: 60 * MINUTE,
     retry: retryPolicy,
   });

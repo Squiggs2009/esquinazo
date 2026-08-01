@@ -15,7 +15,7 @@ export default function Home() {
   useTitle("Football, measured");
 
   const { data, isPending, isError, error, refetch } = useFixtures();
-  const matches = data?.data.matches ?? [];
+  const matches = data?.data.fixtures ?? [];
   const live = matches.filter(isLive);
   const ticker = live.length > 0 ? live : matches.slice(0, 12);
 
@@ -68,7 +68,7 @@ function FixtureList({ matches }: { matches: Parameters<typeof MatchCard>[0]["ma
   return (
     <div ref={scope} className="border-t border-ink-line">
       {matches.map((match) => (
-        <div key={match.id} className="js-reveal">
+        <div key={match.fixture.id} className="js-reveal">
           <MatchCard match={match} />
         </div>
       ))}

@@ -7,20 +7,19 @@ import { EmptyState, ErrorState } from "@/components/States";
 import { PageHeader, useTitle } from "@/components/PageShell";
 import { useStandings } from "@/lib/queries";
 import { formGuide } from "@/lib/format";
-import { LEAGUES, type StandingRow } from "@/lib/api";
+import { DEFAULT_LEAGUE_ID, LEAGUES, type StandingRow } from "@/lib/api";
 import { useReveal } from "@/lib/motion";
 
 export default function Standings() {
   useTitle("Standings");
 
-  const [competition, setCompetition] = useState("PL");
+  const [competition, setCompetition] = useState(DEFAULT_LEAGUE_ID);
   const { data, isPending, isError, error, refetch } = useStandings(competition);
 
-  // The feed returns several tables (total / home / away); the overall one is
-  // what a league table means.
-  const table = data?.data.standings.find((s) => s.type === "TOTAL") ?? data?.data.standings[0];
-  const rows = table?.table ?? [];
-  const league = LEAGUES.find((l) => l.code === competition);
+  // A league returns a single group; a cup returns one per group.
+  const groups = data?.data.standings ?? [];
+  const hasRows = groups.some((group) => group.length > 0);
+  const league = LEAGUES.find((l) => l.id === competition);
 
   return (
     <>
@@ -42,13 +41,24 @@ export default function Standings() {
             <SkeletonList count={12}>{() => <TableRowSkeleton />}</SkeletonList>
           ) : isError ? (
             <ErrorState error={error} onRetry={() => void refetch()} />
-          ) : rows.length === 0 ? (
+          ) : !hasRows ? (
             <EmptyState
               headline="No table yet"
               detail="Standings appear once the competition has played its opening round. Cup formats may not produce one at all."
             />
           ) : (
-            <Table key={competition} rows={rows} />
+            <div key={competition} className="flex flex-col gap-12">
+              {groups.map((rows, index) => (
+                <Table
+                  key={rows[0]?.group ?? index}
+                  rows={rows}
+                  // Only worth labelling when there is more than one to tell apart.
+                  {...(groups.length > 1 && rows[0]?.group
+                    ? { caption: rows[0].group }
+                    : {})}
+                />
+              ))}
+            </div>
           )}
         </div>
       </div>
@@ -56,11 +66,13 @@ export default function Standings() {
   );
 }
 
-function Table({ rows }: { rows: StandingRow[] }) {
+function Table({ rows, caption }: { rows: StandingRow[]; caption?: string }) {
   const scope = useReveal<HTMLDivElement>({ y: 14, stagger: 0.02, duration: 0.6 });
 
   return (
     <div ref={scope} className="overflow-x-auto">
+      {caption && <h3 className="u-eyebrow mb-4 text-ember">{caption}</h3>}
+
       <table className="w-full min-w-[38rem] border-collapse text-sm">
         <thead>
           <tr className="u-eyebrow border-b border-ink-line text-left">
@@ -102,8 +114,8 @@ function Table({ rows }: { rows: StandingRow[] }) {
                          hover:bg-ink-raised"
             >
               <td className="relative py-3 pl-2">
-                <span className={`absolute inset-y-0 left-0 w-0.5 ${zoneColor(row.position)}`} />
-                <span className="tnum text-ink-muted">{row.position}</span>
+                <span className={`absolute inset-y-0 left-0 w-0.5 ${zoneColor(row.description)}`} />
+                <span className="tnum text-ink-muted">{row.rank}</span>
               </td>
 
               <td className="py-3">
@@ -112,18 +124,16 @@ function Table({ rows }: { rows: StandingRow[] }) {
                   className="flex items-center gap-3 transition-colors duration-300 hover:text-ember"
                 >
                   <TeamBadge team={row.team} size="sm" />
-                  <span className="truncate font-semibold">
-                    {row.team.shortName ?? row.team.name}
-                  </span>
+                  <span className="truncate font-semibold">{row.team.name}</span>
                 </Link>
               </td>
 
-              <td className="tnum py-3 text-right text-ink-muted">{row.playedGames}</td>
-              <td className="tnum py-3 text-right text-ink-muted">{row.won}</td>
-              <td className="tnum py-3 text-right text-ink-muted">{row.draw}</td>
-              <td className="tnum py-3 text-right text-ink-muted">{row.lost}</td>
+              <td className="tnum py-3 text-right text-ink-muted">{row.all.played}</td>
+              <td className="tnum py-3 text-right text-ink-muted">{row.all.win}</td>
+              <td className="tnum py-3 text-right text-ink-muted">{row.all.draw}</td>
+              <td className="tnum py-3 text-right text-ink-muted">{row.all.lose}</td>
               <td className="tnum py-3 text-right text-ink-muted">
-                {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
+                {row.goalsDiff > 0 ? `+${row.goalsDiff}` : row.goalsDiff}
               </td>
               <td className="tnum u-display py-3 text-right text-ink-bright">{row.points}</td>
 
@@ -137,18 +147,29 @@ function Table({ rows }: { rows: StandingRow[] }) {
 
       <p className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-xs text-ink-muted">
         <Legend className="bg-emerald-500" label="Champions League" />
-        <Legend className="bg-ember" label="Europa places" />
+        <Legend className="bg-ember" label="Europa / play-off" />
         <Legend className="bg-blood" label="Relegation" />
       </p>
     </div>
   );
 }
 
-/** Position colouring uses the common European shape: top 4, next 2, bottom 3. */
-function zoneColor(position: number): string {
-  if (position <= 4) return "bg-emerald-500";
-  if (position <= 6) return "bg-ember";
-  if (position >= 18) return "bg-blood";
+/**
+ * Zone colouring comes from the provider's own `description` rather than fixed
+ * position numbers: across ten competitions the cut-offs differ (the
+ * Championship promotes via play-off, Liga MX has a Liguilla, cups have none at
+ * all), so hardcoding "top 4, bottom 3" would mislabel most of them.
+ */
+function zoneColor(description: string | null | undefined): string {
+  if (!description) return "bg-transparent";
+  const text = description.toLowerCase();
+
+  if (text.includes("relegation")) return "bg-blood";
+  if (text.includes("champions league")) return "bg-emerald-500";
+  if (text.includes("europa") || text.includes("conference") || text.includes("play-off")) {
+    return "bg-ember";
+  }
+  if (text.includes("promotion")) return "bg-emerald-500";
   return "bg-transparent";
 }
 

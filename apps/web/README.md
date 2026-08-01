@@ -122,8 +122,8 @@ unwraps `data` in `apiGet`.
   response, so a match outside the current feed window shows a not-found state.
 - **No event-level data** on the provider's free tier, so the match timeline shows score
   progression (half-time, full-time) instead of inventing goal minutes.
-- **`/transfers` is tier-gated** by football-data.org and returns 502 with `upstreamStatus: 403`
-  on the free plan.
+- **`/transfers` is keyed by player id** (`?player=<id>`), not by team, and is not yet surfaced
+  in the UI.
 - **Players is squad-scoped**, not a global index — the API serves players by team.
 
 ---

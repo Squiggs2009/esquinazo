@@ -7,15 +7,15 @@ import { EmptyState, ErrorState } from "@/components/States";
 import { PageHeader, useTitle } from "@/components/PageShell";
 import { useSquad, useTeams } from "@/lib/queries";
 import { useReveal } from "@/lib/motion";
-import { LEAGUES } from "@/lib/api";
-import type { Player } from "@/lib/api";
+import { DEFAULT_LEAGUE_ID, LEAGUES } from "@/lib/api";
+import type { SquadPlayer } from "@/lib/api";
 
 /**
  * The API exposes players a squad at a time (GET /players?team=<id>), so this
  * page is "pick a league, then a club, then search within its squad" rather
- * than a global index. The club list comes from GET /teams?competition=,
- * backed by football-data.org's /competitions/{code}/teams - the same
- * LeagueRail used on Fixtures/Standings drives which competition is active.
+ * than a global index. The club list comes from GET /teams?league=, backed by
+ * API-Football's /teams - the same LeagueRail used on Fixtures/Standings
+ * drives which competition is active.
  */
 export default function Players() {
   useTitle("Players");
@@ -23,7 +23,7 @@ export default function Players() {
   const [params, setParams] = useSearchParams();
   const teamParam = Number(params.get("team"));
   const [search, setSearch] = useState("");
-  const [competition, setCompetition] = useState("PL");
+  const [competition, setCompetition] = useState(DEFAULT_LEAGUE_ID);
 
   const {
     data: teamsResponse,
@@ -41,15 +41,17 @@ export default function Players() {
   // reconcile, so nothing needs to run after the fact.
   const teamId = useMemo(() => {
     const fromUrl = Number.isFinite(teamParam) && teamParam > 0 ? teamParam : undefined;
-    if (fromUrl !== undefined && teams.some((team) => team.id === fromUrl)) {
+    if (fromUrl !== undefined && teams.some((entry) => entry.team.id === fromUrl)) {
       return fromUrl;
     }
-    return teams[0]?.id;
+    return teams[0]?.team.id;
   }, [teamParam, teams]);
 
   const { data, isPending, isError, error, refetch } = useSquad(teamId);
 
-  const squad = data?.data.squad ?? [];
+  const squad = data?.data.players ?? [];
+  const team = data?.data.team ?? null;
+
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
     if (!needle) return squad;
@@ -57,25 +59,25 @@ export default function Players() {
       (player) =>
         player.name.toLowerCase().includes(needle) ||
         (player.position ?? "").toLowerCase().includes(needle) ||
-        (player.nationality ?? "").toLowerCase().includes(needle),
+        String(player.number ?? "").includes(needle),
     );
   }, [squad, search]);
 
-  const league = LEAGUES.find((l) => l.code === competition);
+  const league = LEAGUES.find((l) => l.id === competition);
 
   return (
     <>
       <PageHeader
         eyebrow="Squads"
         title="Players"
-        lede="Choose a league and a club, then filter by name, position or nationality."
+        lede="Choose a league and a club, then filter by name, position or shirt number."
       />
 
       <div className="u-frame grid gap-10 pb-section lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-14">
         <LeagueRail
           value={competition}
-          onChange={(code) => {
-            setCompetition(code);
+          onChange={(leagueId) => {
+            setCompetition(leagueId);
             // Let teamId re-derive to the new league's first club instead of
             // carrying the old league's id in the URL until it's overwritten.
             setParams({}, { replace: true });
@@ -94,9 +96,9 @@ export default function Players() {
                            transition-colors duration-300 hover:border-ink-muted focus:border-ember
                            disabled:opacity-50"
               >
-                {teams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
+                {teams.map((entry) => (
+                  <option key={entry.team.id} value={entry.team.id}>
+                    {entry.team.name}
                   </option>
                 ))}
               </select>
@@ -108,7 +110,7 @@ export default function Players() {
                 type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Name, position or nation"
+                placeholder="Name, position or number"
                 className="w-full border border-ink-line bg-ink-raised px-4 py-3 text-sm text-ink-bright
                            placeholder:text-ink-muted/70 transition-colors duration-300
                            hover:border-ink-muted focus:border-ember"
@@ -120,15 +122,12 @@ export default function Players() {
             <ErrorState error={teamsErrorDetail} onRetry={() => void refetchTeams()} />
           ) : (
             <>
-              {data?.data && (
+              {team && (
                 <div className="mb-8 flex items-center gap-4">
-                  <TeamBadge team={data.data} size="lg" />
+                  <TeamBadge team={team} size="lg" />
                   <div>
-                    <h2 className="u-display text-title text-ink-bright">{data.data.name}</h2>
-                    <p className="mt-1 text-xs text-ink-muted">
-                      {data.data.venue ? `${data.data.venue} · ` : ""}
-                      {squad.length} registered
-                    </p>
+                    <h2 className="u-display text-title text-ink-bright">{team.name}</h2>
+                    <p className="mt-1 text-xs text-ink-muted">{squad.length} registered</p>
                   </div>
                 </div>
               )}
@@ -144,7 +143,7 @@ export default function Players() {
                   headline={search ? "No one matches that" : "Squad unavailable"}
                   detail={
                     search
-                      ? `Nothing in this squad matches “${search}”. Try a surname, or a position like "Midfield".`
+                      ? `Nothing in this squad matches “${search}”. Try a surname, or a position like "Midfielder".`
                       : "The feed has no squad list for this club yet."
                   }
                   action={
@@ -171,7 +170,7 @@ export default function Players() {
   );
 }
 
-function PlayerGrid({ players }: { players: Player[] }) {
+function PlayerGrid({ players }: { players: SquadPlayer[] }) {
   const scope = useReveal<HTMLDivElement>({ y: 18, stagger: 0.03, duration: 0.7 });
 
   return (
@@ -187,13 +186,16 @@ function PlayerGrid({ players }: { players: Player[] }) {
           <div className="flex items-center gap-3.5">
             <PlayerAvatar
               name={player.name}
+              playerId={player.id}
+              {...(player.photo === undefined ? {} : { photo: player.photo })}
               className="transition-transform duration-500 ease-out group-hover:scale-105"
             />
             <div className="min-w-0">
               <h3 className="truncate font-semibold text-ink-bright">{player.name}</h3>
-              {player.nationality && (
-                <p className="mt-0.5 truncate text-xs text-ink-muted">{player.nationality}</p>
-              )}
+              <p className="mt-0.5 truncate text-xs text-ink-muted">
+                {player.number ? `#${player.number}` : "—"}
+                {player.age ? ` · ${player.age}` : ""}
+              </p>
             </div>
           </div>
 

@@ -12,6 +12,6 @@ export const SPONSOR = {
 };
 
 export const DATA_PROVIDER = {
-  name: "football-data.org",
-  url: "https://www.football-data.org",
+  name: "API-Football",
+  url: "https://www.api-football.com",
 };

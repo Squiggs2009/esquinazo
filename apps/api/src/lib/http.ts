@@ -10,7 +10,7 @@ import type {
   APIGatewayProxyResultV2,
   Context,
 } from "aws-lambda";
-import { FootballApiError } from "./football-api";
+import { ApiFootballError } from "./api-football";
 import {
   defaultTtlSeconds,
   errorMessage,
@@ -90,19 +90,28 @@ export function requirePositiveInt(
   return value;
 }
 
-const COMPETITION_PATTERN = /^[A-Za-z0-9]{2,4}$/;
+/**
+ * API-Football identifies competitions and seasons numerically (39 = Premier
+ * League, 2026 = the 2026/27 season), so both are plain positive integers
+ * rather than the lettered codes the previous provider used.
+ */
+export function parseLeagueId(raw: string | undefined): number | undefined {
+  const value = parsePositiveInt(raw, "league");
+  if (value === undefined) {
+    return undefined;
+  }
+  return value;
+}
 
-/** Competition codes look like PL, PD, BL1, CL - or a numeric id. */
-export function parseCompetition(raw: string | undefined): string | undefined {
+export function parseSeason(raw: string | undefined): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
-  if (!COMPETITION_PATTERN.test(raw)) {
-    throw new BadRequestError(
-      "competition must be a 2-4 character code (e.g. PL, PD, BL1) or a numeric id",
-    );
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1900 || value > 2100) {
+    throw new BadRequestError("season must be a four-digit year");
   }
-  return raw.toUpperCase();
+  return value;
 }
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -143,7 +152,7 @@ export function toErrorResponse(
     return json({ error: error.message, requestId }, { statusCode: 400 });
   }
 
-  if (error instanceof FootballApiError) {
+  if (error instanceof ApiFootballError) {
     // Client errors from upstream usually mean a bad identifier was passed in.
     if (error.status === 404) {
       return json({ error: "Not found upstream", requestId }, { statusCode: 404 });

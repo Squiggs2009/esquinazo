@@ -1,7 +1,7 @@
 ###############################################################################
 # dynamodb
 #
-# Single-table cache for upstream football-data API responses. Items are keyed
+# Single-table cache for upstream football API responses. Items are keyed
 # by PK/SK and expire automatically through the TTL attribute (expires_at),
 # so stale entries cost nothing to clean up.
 ###############################################################################

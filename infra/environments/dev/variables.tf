@@ -31,8 +31,8 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "football_data_api_key" {
-  description = "API key for the upstream football data provider, injected into every Lambda."
+variable "api_football_key" {
+  description = "API-Football (api-sports.io) key, injected into every Lambda."
   type        = string
   sensitive   = true
 }

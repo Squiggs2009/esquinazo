@@ -141,10 +141,10 @@ module "functions" {
   dynamodb_table_name = module.cache.table_name
 
   common_environment_variables = {
-    FOOTBALL_DATA_API_KEY = var.football_data_api_key
-    CACHE_TTL_SECONDS     = tostring(var.cache_ttl_seconds)
-    ENVIRONMENT           = var.environment
-    NODE_OPTIONS          = "--enable-source-maps"
+    API_FOOTBALL_KEY  = var.api_football_key
+    CACHE_TTL_SECONDS = tostring(var.cache_ttl_seconds)
+    ENVIRONMENT       = var.environment
+    NODE_OPTIONS      = "--enable-source-maps"
   }
 
   tags = local.tags

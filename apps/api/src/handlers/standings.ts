@@ -2,38 +2,30 @@
  * GET /standings
  *
  * Query parameters:
- *   competition  competition code, default PL
- *   season       starting year of the season, e.g. 2024
- *   matchday     positive integer - standings as of that matchday
+ *   league  API-Football league id, default 39 (Premier League)
+ *   season  four-digit year; defaults to the league's current season
+ *
+ * `standings` is an array of groups: a league returns one, a cup returns one
+ * per group.
  */
-import {
-  createResourceHandler,
-  getQuery,
-  parseCompetition,
-  parsePositiveInt,
-} from "../lib/http";
-import { DEFAULT_COMPETITION, getStandings } from "../lib/football-api";
+import { createResourceHandler, getQuery, parseLeagueId, parseSeason } from "../lib/http";
+import { DEFAULT_LEAGUE_ID, getStandings } from "../lib/api-football";
 
 /** Tables only move when matches finish. */
 const TTL_SECONDS = 300;
 
 export const handler = createResourceHandler({
-  resource: "standings",
+  resource: "af:standings",
 
-  parse: (event) => {
-    const competition =
-      parseCompetition(getQuery(event, "competition")) ?? DEFAULT_COMPETITION;
-    const season = parsePositiveInt(getQuery(event, "season"), "season");
-    const matchday = parsePositiveInt(getQuery(event, "matchday"), "matchday");
-
-    return { competition, season, matchday };
-  },
+  parse: (event) => ({
+    league: parseLeagueId(getQuery(event, "league")) ?? DEFAULT_LEAGUE_ID,
+    season: parseSeason(getQuery(event, "season")),
+  }),
 
   fetch: (params) =>
     getStandings({
-      competition: params.competition,
+      league: params.league,
       ...(params.season === undefined ? {} : { season: params.season }),
-      ...(params.matchday === undefined ? {} : { matchday: params.matchday }),
     }),
 
   ttlSeconds: TTL_SECONDS,

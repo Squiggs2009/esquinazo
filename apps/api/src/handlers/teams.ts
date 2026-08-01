@@ -4,22 +4,31 @@
  * Lists the clubs in a competition, backing the league-tab club picker on the
  * Players page. Query parameters:
  *
- *   competition  competition code, default PL
+ *   league  API-Football league id, default 39 (Premier League)
+ *   season  four-digit year; defaults to the league's current season
  */
-import { createResourceHandler, getQuery, parseCompetition } from "../lib/http";
-import { DEFAULT_COMPETITION, getCompetitionTeams } from "../lib/football-api";
+import { createResourceHandler, getQuery, parseLeagueId, parseSeason } from "../lib/http";
+import { DEFAULT_LEAGUE_ID, getCompetitionTeams } from "../lib/api-football";
 
 /** Competition rosters change at promotion/relegation, not day to day. */
 const TTL_SECONDS = 86_400;
 
 export const handler = createResourceHandler({
-  resource: "teams",
+  resource: "af:teams",
 
   parse: (event) => ({
-    competition: parseCompetition(getQuery(event, "competition")) ?? DEFAULT_COMPETITION,
+    league: parseLeagueId(getQuery(event, "league")) ?? DEFAULT_LEAGUE_ID,
+    season: parseSeason(getQuery(event, "season")),
   }),
 
-  fetch: (params) => getCompetitionTeams(params.competition),
+  fetch: async (params) => {
+    const entries = await getCompetitionTeams({
+      league: params.league,
+      ...(params.season === undefined ? {} : { season: params.season }),
+    });
+
+    return { teams: entries };
+  },
 
   ttlSeconds: TTL_SECONDS,
 });

@@ -2,26 +2,25 @@
  * GET /transfers
  *
  * Query parameters:
- *   person  required, numeric person id - returns that player's transfer history
- *
- * football-data.org gates /persons/{id}/transfers by subscription tier; on the
- * free plan this route answers 502 with upstreamStatus 403. See getTransfers in
- * lib/football-api.ts.
+ *   player  required, numeric player id - returns that player's transfer history
  */
 import { createResourceHandler, getQuery, requirePositiveInt } from "../lib/http";
-import { getTransfers } from "../lib/football-api";
+import { getTransfers } from "../lib/api-football";
 
 /** Transfer history is close to immutable once recorded. */
 const TTL_SECONDS = 3_600;
 
 export const handler = createResourceHandler({
-  resource: "transfers",
+  resource: "af:transfers",
 
   parse: (event) => ({
-    person: requirePositiveInt(getQuery(event, "person"), "person"),
+    player: requirePositiveInt(getQuery(event, "player"), "player"),
   }),
 
-  fetch: (params) => getTransfers(params.person),
+  fetch: async (params) => {
+    const entries = await getTransfers(params.player);
+    return { transfers: entries[0]?.transfers ?? [] };
+  },
 
   ttlSeconds: TTL_SECONDS,
 });

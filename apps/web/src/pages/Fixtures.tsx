@@ -7,25 +7,25 @@ import { PageHeader, useTitle } from "@/components/PageShell";
 import { Chip } from "@/components/Badges";
 import { useFixtures } from "@/lib/queries";
 import { groupByDay, weekRange } from "@/lib/format";
-import { isLive, LEAGUES } from "@/lib/api";
+import { DEFAULT_LEAGUE_ID, isLive, LEAGUES } from "@/lib/api";
 import { useReveal } from "@/lib/motion";
 
 export default function Fixtures() {
   useTitle("Fixtures");
 
-  const [competition, setCompetition] = useState("PL");
+  const [competition, setCompetition] = useState(DEFAULT_LEAGUE_ID);
   const [weekOffset, setWeekOffset] = useState(0);
   const week = useMemo(() => weekRange(weekOffset), [weekOffset]);
 
   const { data, isPending, isError, error, refetch, isFetching } = useFixtures({
-    competition,
+    league: competition,
     dateFrom: week.from,
     dateTo: week.to,
   });
 
-  const matches = data?.data.matches ?? [];
+  const matches = data?.data.fixtures ?? [];
   const liveCount = matches.filter(isLive).length;
-  const league = LEAGUES.find((l) => l.code === competition);
+  const league = LEAGUES.find((l) => l.id === competition);
 
   return (
     <>
@@ -45,8 +45,8 @@ export default function Fixtures() {
       <div className="u-frame grid gap-10 pb-section lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-14">
         <LeagueRail
           value={competition}
-          onChange={(code) => {
-            setCompetition(code);
+          onChange={(leagueId) => {
+            setCompetition(leagueId);
             setWeekOffset(0);
           }}
         />
@@ -138,7 +138,7 @@ function DayGroups({ matches }: { matches: Parameters<typeof MatchCard>[0]["matc
           </h3>
           <div className="border-t border-ink-line">
             {dayMatches.map((match) => (
-              <div key={match.id} className="js-reveal">
+              <div key={match.fixture.id} className="js-reveal">
                 <MatchCard match={match} />
               </div>
             ))}

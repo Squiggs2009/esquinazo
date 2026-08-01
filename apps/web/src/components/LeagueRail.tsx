@@ -10,8 +10,8 @@ export function LeagueRail({
   onChange,
   label = "League",
 }: {
-  value: string;
-  onChange: (code: string) => void;
+  value: number;
+  onChange: (leagueId: number) => void;
   label?: string;
 }) {
   return (
@@ -22,12 +22,12 @@ export function LeagueRail({
         <span className="sr-only">{label}</span>
         <select
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => onChange(Number(event.target.value))}
           className="w-full border border-ink-line bg-ink-raised px-4 py-3 text-sm text-ink-bright
                      transition-colors duration-300 hover:border-ink-muted focus:border-ember"
         >
           {LEAGUES.map((league) => (
-            <option key={league.code} value={league.code}>
+            <option key={league.id} value={league.id}>
               {league.code} · {league.name}
             </option>
           ))}
@@ -36,13 +36,13 @@ export function LeagueRail({
 
       <ul className="hidden lg:flex lg:flex-col lg:mx-0 lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0">
         {LEAGUES.map((league) => {
-          const active = league.code === value;
+          const active = league.id === value;
 
           return (
-            <li key={league.code} className="shrink-0 lg:w-full">
+            <li key={league.id} className="shrink-0 lg:w-full">
               <button
                 type="button"
-                onClick={() => onChange(league.code)}
+                onClick={() => onChange(league.id)}
                 aria-current={active ? "true" : undefined}
                 className={`group flex w-full items-baseline gap-2.5 whitespace-nowrap
                             border-ink-line px-3.5 py-2.5 text-left transition-colors duration-300

@@ -6,23 +6,21 @@
  *
  * Two constraints shape this handler:
  *
- *   - football-data.org's free tier allows 10 requests per minute. Targets are
- *     fetched sequentially with a pause between them rather than in parallel,
- *     and REFRESH_COMPETITIONS defaults to two competitions (4 requests).
+ *   - API-Football bills per request against a daily quota. Targets are fetched
+ *     sequentially with a pause between them rather than in parallel, and
+ *     REFRESH_LEAGUES defaults to two leagues (4 requests per run).
  *   - The function has a 60s timeout. It checks remaining time before each
  *     target and stops cleanly instead of being killed mid-write.
  *
  * Cache keys here MUST match what the read handlers compute, otherwise the
  * warmer fills entries nobody reads. Both go through withCache/cacheKey with
- * the same resource name and parameter object.
+ * the same resource name and parameter object - note the `af:` resource
+ * prefix and that `season` is left undefined on both sides, so the warmed
+ * entry is the one an un-parameterised request lands on.
  */
 import type { Context, ScheduledEvent } from "aws-lambda";
 import { errorMessage, withCache } from "../lib/dynamodb";
-import {
-  DEFAULT_COMPETITION,
-  getFixtures,
-  getStandings,
-} from "../lib/football-api";
+import { DEFAULT_LEAGUE_ID, getFixtures, getStandings } from "../lib/api-football";
 
 /** Keep in step with the TTLs in the fixtures/standings handlers. */
 const FIXTURES_TTL_SECONDS = 60;
@@ -32,29 +30,32 @@ const DEFAULT_DELAY_MS = 1_200;
 /** Leave room to finish the in-flight write and return a summary. */
 const TIME_BUFFER_MS = 8_000;
 
+/** La Liga, alongside the default Premier League. */
+const SECONDARY_LEAGUE_ID = 140;
+
 interface RefreshTarget {
-  resource: "fixtures" | "standings";
-  params: { competition: string };
+  resource: "af:fixtures" | "af:standings";
+  params: { league: number };
   ttlSeconds: number;
   fetch: () => Promise<unknown>;
 }
 
 interface TargetOutcome {
   resource: string;
-  competition: string;
+  league: number;
   status: "refreshed" | "failed" | "skipped";
   error?: string;
 }
 
-function competitions(): string[] {
-  const raw = process.env.REFRESH_COMPETITIONS;
+function leagues(): number[] {
+  const raw = process.env.REFRESH_LEAGUES;
   if (!raw) {
-    return [DEFAULT_COMPETITION, "PD"];
+    return [DEFAULT_LEAGUE_ID, SECONDARY_LEAGUE_ID];
   }
   return raw
     .split(",")
-    .map((code) => code.trim().toUpperCase())
-    .filter((code) => code.length > 0);
+    .map((id) => Number(id.trim()))
+    .filter((id) => Number.isInteger(id) && id > 0);
 }
 
 function delayMs(): number {
@@ -63,18 +64,18 @@ function delayMs(): number {
 }
 
 function buildTargets(): RefreshTarget[] {
-  return competitions().flatMap((competition) => [
+  return leagues().flatMap((league) => [
     {
-      resource: "fixtures" as const,
-      params: { competition },
+      resource: "af:fixtures" as const,
+      params: { league },
       ttlSeconds: FIXTURES_TTL_SECONDS,
-      fetch: () => getFixtures({ competition }),
+      fetch: async () => ({ fixtures: await getFixtures({ league }) }),
     },
     {
-      resource: "standings" as const,
-      params: { competition },
+      resource: "af:standings" as const,
+      params: { league },
       ttlSeconds: STANDINGS_TTL_SECONDS,
-      fetch: () => getStandings({ competition }),
+      fetch: () => getStandings({ league }),
     },
   ]);
 }
@@ -108,7 +109,7 @@ export const handler = async (
       results.push(
         ...targets.slice(index).map((remaining) => ({
           resource: remaining.resource,
-          competition: remaining.params.competition,
+          league: remaining.params.league,
           status: "skipped" as const,
         })),
       );
@@ -132,21 +133,17 @@ export const handler = async (
         allowStaleOnError: false,
       });
 
-      results.push({
-        resource,
-        competition: params.competition,
-        status: "refreshed",
-      });
+      results.push({ resource, league: params.league, status: "refreshed" });
     } catch (error) {
       const message = errorMessage(error);
       console.error("refresh target failed", {
         resource,
-        competition: params.competition,
+        league: params.league,
         error: message,
       });
       results.push({
         resource,
-        competition: params.competition,
+        league: params.league,
         status: "failed",
         error: message,
       });
@@ -167,8 +164,8 @@ export const handler = async (
 
   console.log("refresh complete", summary);
 
-  // Partial success is normal (one competition may 429). Total failure is not,
-  // and throwing lets EventBridge retry and eventually route to the DLQ.
+  // Partial success is normal (one league may rate-limit). Total failure is
+  // not, and throwing lets EventBridge retry and eventually route to the DLQ.
   if (summary.refreshed === 0 && summary.failed > 0) {
     throw new Error(
       `refresh failed for all ${summary.failed} targets: ${

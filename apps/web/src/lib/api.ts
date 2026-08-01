@@ -6,6 +6,9 @@
  * components never see the envelope, but keep `meta` available for the cache
  * badge in the UI.
  *
+ * Types mirror API-Football v3 response shapes, which the handlers pass through
+ * untouched rather than remapping.
+ *
  * In dev, requests go to /api and Vite proxies them, avoiding the CORS policy
  * that only allows the production origins.
  */
@@ -77,98 +80,125 @@ export async function apiGet<T>(path: string, query: Query = {}): Promise<Envelo
 }
 
 /* ------------------------------------------------------------------ *
- * Upstream shapes - partial mirrors of football-data.org v4, matching
- * the types in apps/api/src/lib/football-api.ts.
+ * Upstream shapes - partial mirrors of API-Football v3, matching the
+ * types in apps/api/src/lib/api-football.ts.
  * ------------------------------------------------------------------ */
 
 export interface Team {
   id: number;
   name: string;
-  shortName?: string;
-  tla?: string;
-  crest?: string;
+  logo?: string;
+  winner?: boolean | null;
 }
 
-export interface Competition {
+export interface League {
   id: number;
   name: string;
-  code: string;
-  emblem?: string;
+  country?: string;
+  logo?: string;
+  flag?: string;
+  season?: number;
+  round?: string;
 }
 
-export interface Score {
-  winner?: string | null;
-  fullTime?: { home: number | null; away: number | null };
-  halfTime?: { home: number | null; away: number | null };
+export interface FixtureStatus {
+  long: string;
+  short: string;
+  elapsed?: number | null;
 }
 
-export interface Match {
-  id: number;
-  utcDate: string;
-  status: string;
-  matchday?: number | null;
-  stage?: string;
-  competition?: Competition;
-  homeTeam: Team;
-  awayTeam: Team;
-  score?: Score;
+export interface Fixture {
+  fixture: {
+    id: number;
+    referee?: string | null;
+    date: string;
+    timestamp?: number;
+    venue?: { id?: number | null; name?: string | null; city?: string | null };
+    status: FixtureStatus;
+  };
+  league: League;
+  teams: { home: Team; away: Team };
+  goals: { home: number | null; away: number | null };
+  score?: {
+    halftime?: { home: number | null; away: number | null };
+    fulltime?: { home: number | null; away: number | null };
+    extratime?: { home: number | null; away: number | null };
+    penalty?: { home: number | null; away: number | null };
+  };
 }
 
-export interface MatchesResponse {
-  competition?: Competition;
-  resultSet?: { count: number };
-  matches: Match[];
+export interface FixturesResponse {
+  fixtures: Fixture[];
 }
 
 export interface StandingRow {
-  position: number;
+  rank: number;
   team: Team;
-  playedGames: number;
-  won: number;
-  draw: number;
-  lost: number;
   points: number;
-  goalsFor: number;
-  goalsAgainst: number;
-  goalDifference: number;
+  goalsDiff: number;
+  group?: string;
   form?: string | null;
+  description?: string | null;
+  all: {
+    played: number;
+    win: number;
+    draw: number;
+    lose: number;
+    goals: { for: number; against: number };
+  };
 }
 
 export interface StandingsResponse {
-  competition?: Competition;
-  standings: Array<{
-    stage: string;
-    type: string;
-    group?: string | null;
-    table: StandingRow[];
-  }>;
+  league?: League;
+  /** One group per entry: a league has one, a cup has several. */
+  standings: StandingRow[][];
 }
 
-export interface Player {
+export interface SquadPlayer {
   id: number;
   name: string;
+  age?: number | null;
+  number?: number | null;
+  /**
+   * Coarse only. API-Football's /players/squads reports exactly four values -
+   * Goalkeeper, Defender, Midfielder, Attacker - never CB/LB/CDM/LW.
+   */
   position?: string | null;
-  dateOfBirth?: string;
-  nationality?: string;
+  photo?: string;
 }
 
-export interface SquadResponse extends Team {
-  founded?: number;
-  venue?: string;
-  squad: Player[];
+export interface SquadResponse {
+  team: Team | null;
+  players: SquadPlayer[];
 }
 
-export interface Transfer {
-  id?: number;
+export interface TeamEntry {
+  team: Team & {
+    code?: string | null;
+    country?: string;
+    founded?: number | null;
+    national?: boolean;
+  };
+  venue?: {
+    id?: number | null;
+    name?: string | null;
+    city?: string | null;
+    capacity?: number | null;
+  };
+}
+
+export interface TeamsResponse {
+  teams: TeamEntry[];
+}
+
+export interface TransferMove {
   date?: string;
-  playerName?: string;
-  sourceTeam?: Team | null;
-  destinationTeam?: Team | null;
-  type?: string;
+  type?: string | null;
+  teams?: { in?: Team; out?: Team };
 }
 
 export interface TransfersResponse {
-  transfers: Transfer[];
+  transfers: TransferMove[];
 }
 
 export interface NewsArticle {
@@ -184,10 +214,18 @@ export interface NewsResponse {
   articles: NewsArticle[];
 }
 
-export interface TeamsResponse {
-  competition?: Competition;
-  teams: Team[];
-}
+/* ------------------------------------------------------------------ *
+ * Media
+ *
+ * The API already returns absolute media URLs, so these are only used as a
+ * fallback when a payload omits one.
+ * ------------------------------------------------------------------ */
+
+export const teamCrestUrl = (teamId: number) =>
+  `https://media.api-sports.io/football/teams/${teamId}.png`;
+
+export const playerPhotoUrl = (playerId: number) =>
+  `https://media.api-sports.io/football/players/${playerId}.png`;
 
 /* ------------------------------------------------------------------ *
  * Endpoints
@@ -198,56 +236,61 @@ export interface TeamsResponse {
  * which is what lets this satisfy the Record<string, ...> query parameter.
  */
 export type FixturesQuery = {
-  competition?: string;
-  matchday?: number;
+  league?: number;
+  season?: number;
   dateFrom?: string;
   dateTo?: string;
   status?: string;
 };
 
 export const getFixtures = (query: FixturesQuery = {}) =>
-  apiGet<MatchesResponse>("/fixtures", query);
+  apiGet<FixturesResponse>("/fixtures", query);
 
-export const getStandings = (query: { competition?: string; matchday?: number } = {}) =>
+export const getStandings = (query: { league?: number; season?: number } = {}) =>
   apiGet<StandingsResponse>("/standings", query);
 
 /** The API exposes squads by team id: GET /players?team=<id>. */
 export const getSquad = (teamId: number) => apiGet<SquadResponse>("/players", { team: teamId });
 
-export const getTransfers = (personId: number) =>
-  apiGet<TransfersResponse>("/transfers", { person: personId });
+export const getTransfers = (playerId: number) =>
+  apiGet<TransfersResponse>("/transfers", { player: playerId });
 
-/**
- * No /news endpoint exists on the API yet. The call is wired so the page works
- * the moment one ships; until then it 404s and the page shows its empty state.
- */
 export const getNews = () => apiGet<NewsResponse>("/news");
 
 /** Clubs in a competition, for the Players page's league-driven club picker. */
-export const getTeams = (competition: string) =>
-  apiGet<TeamsResponse>("/teams", { competition });
+export const getTeams = (league: number, season?: number) =>
+  apiGet<TeamsResponse>("/teams", { league, ...(season === undefined ? {} : { season }) });
 
 /* ------------------------------------------------------------------ *
- * Leagues offered in the filters. Codes are football-data.org's.
+ * Leagues offered in the filters. Ids are API-Football's.
  * ------------------------------------------------------------------ */
 
-export interface League {
+export interface LeagueOption {
+  id: number;
   code: string;
   name: string;
   country: string;
 }
 
-export const LEAGUES: League[] = [
-  { code: "PL", name: "Premier League", country: "England" },
-  { code: "PD", name: "La Liga", country: "Spain" },
-  { code: "SA", name: "Serie A", country: "Italy" },
-  { code: "BL1", name: "Bundesliga", country: "Germany" },
-  { code: "FL1", name: "Ligue 1", country: "France" },
-  { code: "CL", name: "Champions League", country: "Europe" },
-  { code: "DED", name: "Eredivisie", country: "Netherlands" },
-  { code: "PPL", name: "Primeira Liga", country: "Portugal" },
+export const LEAGUES: LeagueOption[] = [
+  { id: 39, code: "PL", name: "Premier League", country: "England" },
+  { id: 40, code: "ELC", name: "Championship", country: "England" },
+  { id: 140, code: "PD", name: "La Liga", country: "Spain" },
+  { id: 135, code: "SA", name: "Serie A", country: "Italy" },
+  { id: 78, code: "BL1", name: "Bundesliga", country: "Germany" },
+  { id: 61, code: "FL1", name: "Ligue 1", country: "France" },
+  { id: 2, code: "UCL", name: "Champions League", country: "Europe" },
+  { id: 88, code: "DED", name: "Eredivisie", country: "Netherlands" },
+  { id: 94, code: "PPL", name: "Primeira Liga", country: "Portugal" },
+  { id: 262, code: "MX", name: "Liga MX", country: "Mexico" },
 ];
 
-export const LIVE_STATUSES = new Set(["IN_PLAY", "PAUSED", "LIVE"]);
+export const DEFAULT_LEAGUE_ID = 39;
 
-export const isLive = (match: Match) => LIVE_STATUSES.has(match.status);
+/**
+ * Upstream short codes for a match in progress. HT/BT are breaks *within* a
+ * live match, so they count as live; PST/CANC/SUSP/INT are not.
+ */
+export const LIVE_STATUSES = new Set(["1H", "2H", "HT", "ET", "BT", "P", "LIVE"]);
+
+export const isLive = (fixture: Fixture) => LIVE_STATUSES.has(fixture.fixture.status.short);

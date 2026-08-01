@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { initials, teamHue, teamMark } from "@/lib/format";
-import type { Team } from "@/lib/api";
+import { playerPhotoUrl, type Team } from "@/lib/api";
 
 const SIZES = {
   sm: "h-8 w-8 text-[0.625rem]",
@@ -24,15 +25,17 @@ export function TeamBadge({
   size?: Size;
   className?: string;
 }) {
+  const [failed, setFailed] = useState(false);
   const mark = teamMark(team);
   const hue = teamHue(team.name);
 
-  if (team.crest) {
+  if (team.logo && !failed) {
     return (
       <img
-        src={team.crest}
+        src={team.logo}
         alt=""
         loading="lazy"
+        onError={() => setFailed(true)}
         className={`${SIZES[size]} shrink-0 rounded-full object-contain ${className}`}
       />
     );
@@ -52,16 +55,39 @@ export function TeamBadge({
   );
 }
 
-/** Player avatar: initials only, since the feed carries no photographs. */
+/**
+ * Player avatar. API-Football supplies headshots, but coverage is patchy for
+ * academy and lower-division players, so a failed load falls back to the
+ * initials disc rather than a broken-image icon.
+ */
 export function PlayerAvatar({
   name,
+  playerId,
+  photo,
   size = "md",
   className = "",
 }: {
   name: string;
+  playerId?: number;
+  photo?: string;
   size?: Size;
   className?: string;
 }) {
+  const [failed, setFailed] = useState(false);
+  const src = photo ?? (playerId === undefined ? undefined : playerPhotoUrl(playerId));
+
+  if (src && !failed) {
+    return (
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className={`${SIZES[size]} shrink-0 rounded-full object-cover ${className}`}
+      />
+    );
+  }
+
   return (
     <span
       aria-hidden="true"

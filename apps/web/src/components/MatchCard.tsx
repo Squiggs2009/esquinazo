@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { TeamBadge } from "./Badges";
-import { isLive, type Match } from "@/lib/api";
+import { isLive, type Fixture, type Team } from "@/lib/api";
 import { kickoffTime, scoreline, statusLabel } from "@/lib/format";
 
 /**
@@ -8,11 +8,12 @@ import { kickoffTime, scoreline, statusLabel } from "@/lib/format";
  * set in tabular figures on the right, and a live match marked by an ember bar
  * down its leading edge. Hover lifts the row and lights that edge.
  */
-export function MatchCard({ match }: { match: Match }) {
+export function MatchCard({ match }: { match: Fixture }) {
   const live = isLive(match);
   const { home, away } = scoreline(match);
   const played = home !== null && away !== null;
-  const finished = match.status === "FINISHED";
+  const status = match.fixture.status.short;
+  const finished = status === "FT" || status === "AET" || status === "PEN";
 
   // Dim the losing side once a result stands - the eye should find the winner
   // without reading the numbers.
@@ -21,7 +22,7 @@ export function MatchCard({ match }: { match: Match }) {
 
   return (
     <Link
-      to={`/match/${match.id}`}
+      to={`/match/${match.fixture.id}`}
       className="group relative block border-b border-ink-line transition-all duration-500 ease-out
                  hover:z-10 hover:-translate-y-0.5 hover:bg-ink-raised hover:shadow-ember
                  focus-visible:z-10 focus-visible:bg-ink-raised"
@@ -41,18 +42,18 @@ export function MatchCard({ match }: { match: Match }) {
           {live ? (
             <span className="u-eyebrow flex items-center gap-1.5 text-ember-bright">
               <span className="h-1.5 w-1.5 animate-live rounded-full bg-ember-bright" />
-              Live
+              {match.fixture.status.elapsed ? `${match.fixture.status.elapsed}'` : "Live"}
             </span>
           ) : (
             <span className="tnum block text-sm text-ink-muted">
-              {finished ? statusLabel(match.status) : kickoffTime(match.utcDate)}
+              {finished ? statusLabel(status) : kickoffTime(match.fixture.date)}
             </span>
           )}
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-          <TeamLine team={match.homeTeam} dimmed={homeLost} />
-          <TeamLine team={match.awayTeam} dimmed={awayLost} />
+          <TeamLine team={match.teams.home} dimmed={homeLost} />
+          <TeamLine team={match.teams.away} dimmed={awayLost} />
         </div>
 
         <div className="shrink-0 text-right">
@@ -62,7 +63,7 @@ export function MatchCard({ match }: { match: Match }) {
               <span className={awayLost ? "text-ink-muted" : "text-ink-bright"}>{away}</span>
             </div>
           ) : (
-            <span className="u-eyebrow text-ink-muted">{statusLabel(match.status)}</span>
+            <span className="u-eyebrow text-ink-muted">{statusLabel(status)}</span>
           )}
         </div>
       </div>
@@ -70,7 +71,7 @@ export function MatchCard({ match }: { match: Match }) {
   );
 }
 
-function TeamLine({ team, dimmed }: { team: Parameters<typeof TeamBadge>[0]["team"]; dimmed: boolean }) {
+function TeamLine({ team, dimmed }: { team: Team; dimmed: boolean }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
       <TeamBadge team={team} size="sm" className={dimmed ? "opacity-45" : ""} />
@@ -79,7 +80,7 @@ function TeamLine({ team, dimmed }: { team: Parameters<typeof TeamBadge>[0]["tea
           dimmed ? "text-ink-muted" : "text-ink-bright"
         }`}
       >
-        {team.shortName ?? team.name}
+        {team.name}
       </span>
     </div>
   );

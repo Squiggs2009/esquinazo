@@ -5,6 +5,13 @@ infra/modules/lambda/.build/
 # === NODE ===
 node_modules/
 
+# === LOCAL SECRETS ===
+# Real credentials for local development. Deployed environments get these as
+# Lambda environment variables from Terraform instead.
+.env
+.env.*
+!.env.example
+
 # === TERRAFORM ===
 # Provider binaries and module caches - hundreds of MB, machine-specific.
 # NOTE: this matches only a directory named .terraform, so the sibling

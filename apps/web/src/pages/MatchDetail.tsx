@@ -4,23 +4,22 @@ import { Shimmer } from "@/components/Skeleton";
 import { EmptyState, ErrorState } from "@/components/States";
 import { useTitle } from "@/components/PageShell";
 import { useFixtures } from "@/lib/queries";
-import { isLive, type Match } from "@/lib/api";
+import { isLive, type Fixture, type Team } from "@/lib/api";
 import { kickoffTime, matchDay, scoreline, statusLabel } from "@/lib/format";
 import { useReveal } from "@/lib/motion";
 
 /**
- * The API has no /match/:id endpoint, so the match is located within the
- * fixtures feed already in the query cache — instant when arriving from a
- * fixture list, a single fetch otherwise.
+ * The match is located within the fixtures feed already in the query cache -
+ * instant when arriving from a fixture list, a single fetch otherwise.
  */
 export default function MatchDetail() {
   const { id } = useParams();
   const matchId = Number(id);
 
   const { data, isPending, isError, error, refetch } = useFixtures();
-  const match = data?.data.matches.find((m) => m.id === matchId);
+  const match = data?.data.fixtures.find((m) => m.fixture.id === matchId);
 
-  useTitle(match ? `${match.homeTeam.shortName ?? match.homeTeam.name} vs ${match.awayTeam.shortName ?? match.awayTeam.name}` : "Match");
+  useTitle(match ? `${match.teams.home.name} vs ${match.teams.away.name}` : "Match");
 
   if (isPending) return <MatchSkeleton />;
   if (isError) {
@@ -54,11 +53,12 @@ export default function MatchDetail() {
   return <MatchView match={match} />;
 }
 
-function MatchView({ match }: { match: Match }) {
+function MatchView({ match }: { match: Fixture }) {
   const scope = useReveal<HTMLDivElement>({ y: 22 });
   const { home, away } = scoreline(match);
   const played = home !== null && away !== null;
   const live = isLive(match);
+  const status = match.fixture.status.short;
 
   return (
     <div ref={scope}>
@@ -74,12 +74,18 @@ function MatchView({ match }: { match: Match }) {
             <Link to="/fixtures" className="u-eyebrow text-ink-muted hover:text-ink-bright">
               ← Fixtures
             </Link>
-            {match.competition && <Chip>{match.competition.name}</Chip>}
-            {live ? <Chip tone="live">Live</Chip> : <Chip>{statusLabel(match.status)}</Chip>}
+            <Chip>{match.league.name}</Chip>
+            {live ? (
+              <Chip tone="live">
+                {match.fixture.status.elapsed ? `${match.fixture.status.elapsed}'` : "Live"}
+              </Chip>
+            ) : (
+              <Chip>{statusLabel(status)}</Chip>
+            )}
           </div>
 
           <div className="js-reveal mt-10 grid grid-cols-[1fr_auto_1fr] items-center gap-4 sm:gap-10">
-            <Side team={match.homeTeam} align="right" />
+            <Side team={match.teams.home} align="right" />
 
             <div className="text-center">
               {played ? (
@@ -88,13 +94,13 @@ function MatchView({ match }: { match: Match }) {
                 </p>
               ) : (
                 <p className="tnum u-display text-title text-ink-bright">
-                  {kickoffTime(match.utcDate)}
+                  {kickoffTime(match.fixture.date)}
                 </p>
               )}
-              <p className="u-eyebrow mt-3">{matchDay(match.utcDate)}</p>
+              <p className="u-eyebrow mt-3">{matchDay(match.fixture.date)}</p>
             </div>
 
-            <Side team={match.awayTeam} align="left" />
+            <Side team={match.teams.away} align="left" />
           </div>
         </div>
       </header>
@@ -108,15 +114,18 @@ function MatchView({ match }: { match: Match }) {
         <aside className="js-reveal">
           <h2 className="u-eyebrow mb-5">Match facts</h2>
           <dl className="flex flex-col">
-            <Fact label="Competition" value={match.competition?.name ?? "—"} />
-            <Fact label="Matchday" value={match.matchday ? `Round ${match.matchday}` : "—"} />
-            <Fact label="Stage" value={match.stage?.replace(/_/g, " ") ?? "—"} />
-            <Fact label="Kick-off" value={`${matchDay(match.utcDate)} · ${kickoffTime(match.utcDate)}`} />
-            <Fact label="Status" value={statusLabel(match.status)} />
-            {match.score?.halfTime?.home !== null && match.score?.halfTime !== undefined && (
+            <Fact label="Competition" value={match.league.name} />
+            <Fact label="Round" value={match.league.round ?? "—"} />
+            <Fact label="Venue" value={match.fixture.venue?.name ?? "—"} />
+            <Fact
+              label="Kick-off"
+              value={`${matchDay(match.fixture.date)} · ${kickoffTime(match.fixture.date)}`}
+            />
+            <Fact label="Status" value={statusLabel(status)} />
+            {match.score?.halftime?.home !== null && match.score?.halftime !== undefined && (
               <Fact
                 label="Half-time"
-                value={`${match.score.halfTime.home ?? 0} – ${match.score.halfTime.away ?? 0}`}
+                value={`${match.score.halftime.home ?? 0} – ${match.score.halftime.away ?? 0}`}
               />
             )}
           </dl>
@@ -126,7 +135,7 @@ function MatchView({ match }: { match: Match }) {
   );
 }
 
-function Side({ team, align }: { team: Match["homeTeam"]; align: "left" | "right" }) {
+function Side({ team, align }: { team: Team; align: "left" | "right" }) {
   return (
     <div
       className={`flex items-center gap-4 ${align === "right" ? "flex-row-reverse text-right" : "text-left"}`}
@@ -135,22 +144,23 @@ function Side({ team, align }: { team: Match["homeTeam"]; align: "left" | "right
       <TeamBadge team={team} size="md" className="sm:hidden" />
       <div className="min-w-0">
         <h2 className="u-display truncate text-base leading-tight text-ink-bright sm:text-xl">
-          {team.shortName ?? team.name}
+          {team.name}
         </h2>
-        {team.tla && <p className="mt-1 text-xs text-ink-muted">{team.tla}</p>}
       </div>
     </div>
   );
 }
 
 /**
- * The feed carries no event-level data on the free tier, so the timeline shows
- * the score progression it does know — rather than inventing goal minutes.
+ * Score progression. Minute-level events (goals, cards, subs) come from
+ * /fixtures/events, which this page does not call yet.
  */
-function Timeline({ match }: { match: Match }) {
-  const half = match.score?.halfTime;
-  const full = match.score?.fullTime;
+function Timeline({ match }: { match: Fixture }) {
+  const half = match.score?.halftime;
+  const full = match.score?.fulltime;
   const hasProgress = half?.home !== null && half?.home !== undefined;
+  const status = match.fixture.status.short;
+  const finished = status === "FT" || status === "AET" || status === "PEN";
 
   return (
     <section className="js-reveal">
@@ -163,7 +173,7 @@ function Timeline({ match }: { match: Match }) {
       ) : (
         <ol className="relative flex flex-col gap-7 border-l border-ink-line pl-7">
           <Moment label="Half-time" home={half?.home ?? 0} away={half?.away ?? 0} />
-          {match.status === "FINISHED" && (
+          {finished && (
             <Moment label="Full-time" home={full?.home ?? 0} away={full?.away ?? 0} emphasis />
           )}
         </ol>
@@ -198,11 +208,11 @@ function Moment({
   );
 }
 
-function Comparison({ match }: { match: Match }) {
+function Comparison({ match }: { match: Fixture }) {
   const { home, away } = scoreline(match);
   if (home === null || away === null) return null;
 
-  const half = match.score?.halfTime;
+  const half = match.score?.halftime;
   const rows = [
     { label: "Goals", home, away },
     { label: "First half", home: half?.home ?? 0, away: half?.away ?? 0 },

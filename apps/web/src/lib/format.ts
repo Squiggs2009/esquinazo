@@ -1,4 +1,4 @@
-import type { Match, Team } from "./api";
+import type { Fixture, Team } from "./api";
 
 /** "Lionel Messi" -> "LM", "Vinícius" -> "VI". Never more than two glyphs. */
 export function initials(name: string): string {
@@ -15,9 +15,12 @@ export function initials(name: string): string {
   return (first + last).toUpperCase();
 }
 
-/** Prefer the club's own three-letter abbreviation when the feed supplies one. */
+/**
+ * Short mark for a club. API-Football's fixture payloads carry only id/name/logo
+ * (no three-letter abbreviation), so this derives one from the name.
+ */
 export function teamMark(team: Team): string {
-  return team.tla ?? initials(team.shortName ?? team.name);
+  return initials(team.name);
 }
 
 /**
@@ -96,36 +99,55 @@ export function weekRange(offset: number): {
   return { from: toLocalISODate(monday), to: toLocalISODate(sunday), label, rangeText };
 }
 
-/** Groups matches under a day heading, preserving chronological order. */
-export function groupByDay(matches: Match[]): Array<[string, Match[]]> {
-  const buckets = new Map<string, Match[]>();
+/** Groups fixtures under a day heading, preserving chronological order. */
+export function groupByDay(fixtures: Fixture[]): Array<[string, Fixture[]]> {
+  const buckets = new Map<string, Fixture[]>();
 
-  for (const match of [...matches].sort((a, b) => a.utcDate.localeCompare(b.utcDate))) {
-    const key = matchDay(match.utcDate);
+  for (const fixture of [...fixtures].sort((a, b) =>
+    a.fixture.date.localeCompare(b.fixture.date),
+  )) {
+    const key = matchDay(fixture.fixture.date);
     const bucket = buckets.get(key);
-    if (bucket) bucket.push(match);
-    else buckets.set(key, [match]);
+    if (bucket) bucket.push(fixture);
+    else buckets.set(key, [fixture]);
   }
 
   return [...buckets.entries()];
 }
 
-export function scoreline(match: Match): { home: number | null; away: number | null } {
+/**
+ * Live/final score. `goals` is the running score during a match and the final
+ * one after it, which is what a scoreline should show; `score.fulltime` stays
+ * null until the whistle.
+ */
+export function scoreline(fixture: Fixture): { home: number | null; away: number | null } {
   return {
-    home: match.score?.fullTime?.home ?? null,
-    away: match.score?.fullTime?.away ?? null,
+    home: fixture.goals?.home ?? null,
+    away: fixture.goals?.away ?? null,
   };
 }
 
+/** API-Football short status codes. */
 const STATUS_COPY: Record<string, string> = {
-  SCHEDULED: "Scheduled",
-  TIMED: "Kick-off",
-  IN_PLAY: "Live",
-  PAUSED: "Half-time",
-  FINISHED: "Full-time",
-  POSTPONED: "Postponed",
-  SUSPENDED: "Suspended",
-  CANCELLED: "Cancelled",
+  TBD: "Time TBD",
+  NS: "Scheduled",
+  "1H": "1st half",
+  HT: "Half-time",
+  "2H": "2nd half",
+  ET: "Extra time",
+  BT: "Break",
+  P: "Penalties",
+  SUSP: "Suspended",
+  INT: "Interrupted",
+  FT: "Full-time",
+  AET: "After extra time",
+  PEN: "On penalties",
+  PST: "Postponed",
+  CANC: "Cancelled",
+  ABD: "Abandoned",
+  AWD: "Awarded",
+  WO: "Walkover",
+  LIVE: "Live",
 };
 
 export const statusLabel = (status: string) => STATUS_COPY[status] ?? status.replace(/_/g, " ");
