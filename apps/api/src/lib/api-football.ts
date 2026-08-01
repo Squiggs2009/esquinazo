@@ -262,6 +262,49 @@ export interface Fixture {
   };
 }
 
+/** A minute-level incident. `type` is "Goal" | "Card" | "subst" | "Var". */
+export interface MatchEvent {
+  time: { elapsed: number | null; extra?: number | null };
+  team: Team;
+  player?: { id?: number | null; name?: string | null };
+  assist?: { id?: number | null; name?: string | null };
+  type: string;
+  detail?: string;
+  comments?: string | null;
+}
+
+export interface LineupPlayer {
+  player: {
+    id: number;
+    name: string;
+    number?: number | null;
+    /** "G" | "D" | "M" | "F". */
+    pos?: string | null;
+    /** "row:column" within the formation, e.g. "2:3". Null for substitutes. */
+    grid?: string | null;
+  };
+}
+
+export interface Lineup {
+  team: Team & { colors?: unknown };
+  formation?: string | null;
+  startXI: LineupPlayer[];
+  substitutes: LineupPlayer[];
+  coach?: { id?: number | null; name?: string | null; photo?: string | null };
+}
+
+export interface TeamStatistics {
+  team: Team;
+  statistics: Array<{ type: string; value: string | number | null }>;
+}
+
+/** A fixture plus everything /fixtures?id= embeds alongside it. */
+export interface FixtureDetail extends Fixture {
+  events?: MatchEvent[];
+  lineups?: Lineup[];
+  statistics?: TeamStatistics[];
+}
+
 export interface StandingRow {
   rank: number;
   team: Team;
@@ -395,6 +438,20 @@ export async function getFixtures(params: FixturesParams = {}): Promise<Fixture[
       ...(params.status === undefined ? {} : { status: params.status }),
     },
   });
+}
+
+/**
+ * One fixture with its events, lineups and statistics. Querying by id makes
+ * the provider embed all three in the same payload, so a match page costs a
+ * single upstream request rather than four.
+ *
+ * Those sections populate at different times: lineups roughly an hour before
+ * kick-off, events and statistics as the match runs. An absent section means
+ * "not published yet", not an error.
+ */
+export async function getFixtureDetail(fixtureId: number): Promise<FixtureDetail | null> {
+  const entries = await request<FixtureDetail>("/fixtures", { query: { id: fixtureId } });
+  return entries[0] ?? null;
 }
 
 export interface StandingsParams {

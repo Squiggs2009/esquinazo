@@ -131,6 +131,52 @@ export interface FixturesResponse {
   fixtures: Fixture[];
 }
 
+/** A minute-level incident. `type` is "Goal" | "Card" | "subst" | "Var". */
+export interface MatchEvent {
+  time: { elapsed: number | null; extra?: number | null };
+  team: Team;
+  player?: { id?: number | null; name?: string | null };
+  assist?: { id?: number | null; name?: string | null };
+  type: string;
+  detail?: string;
+  comments?: string | null;
+}
+
+export interface LineupPlayer {
+  player: {
+    id: number;
+    name: string;
+    number?: number | null;
+    /** "G" | "D" | "M" | "F". */
+    pos?: string | null;
+    /** "row:column" within the formation. Null for substitutes. */
+    grid?: string | null;
+  };
+}
+
+export interface Lineup {
+  team: Team;
+  formation?: string | null;
+  startXI: LineupPlayer[];
+  substitutes: LineupPlayer[];
+  coach?: { id?: number | null; name?: string | null; photo?: string | null };
+}
+
+export interface TeamStatistics {
+  team: Team;
+  statistics: Array<{ type: string; value: string | number | null }>;
+}
+
+export interface FixtureDetail extends Fixture {
+  events?: MatchEvent[];
+  lineups?: Lineup[];
+  statistics?: TeamStatistics[];
+}
+
+export interface FixtureDetailResponse {
+  detail: FixtureDetail | null;
+}
+
 export interface StandingRow {
   rank: number;
   team: Team;
@@ -245,6 +291,14 @@ export type FixturesQuery = {
 
 export const getFixtures = (query: FixturesQuery = {}) =>
   apiGet<FixturesResponse>("/fixtures", query);
+
+/**
+ * One match with its events, lineups and statistics. Shares the /fixtures
+ * route: upstream serves both from the same endpoint, so the API exposes the
+ * detail behind a `fixture` parameter rather than a separate resource.
+ */
+export const getFixtureDetail = (fixtureId: number) =>
+  apiGet<FixtureDetailResponse>("/fixtures", { fixture: fixtureId });
 
 export const getStandings = (query: { league?: number; season?: number } = {}) =>
   apiGet<StandingsResponse>("/standings", query);

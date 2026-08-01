@@ -7,12 +7,14 @@ import { MatchCard } from "@/components/MatchCard";
 import { MatchCardSkeleton, SkeletonList } from "@/components/Skeleton";
 import { ErrorState } from "@/components/States";
 import { useTitle } from "@/components/PageShell";
+import { useT } from "@/context/LanguageContext";
 import { useFixtures } from "@/lib/queries";
 import { EASE, gsap, MOTION_OK, useCounter, useParallax, useReveal } from "@/lib/motion";
 import { isLive } from "@/lib/api";
 
 export default function Home() {
-  useTitle("Football, measured");
+  const t = useT();
+  useTitle(t("home.title"));
 
   const { data, isPending, isError, error, refetch } = useFixtures();
   const matches = data?.data.fixtures ?? [];
@@ -31,14 +33,14 @@ export default function Home() {
           <div>
             <p className="u-eyebrow flex items-center gap-2 text-ember-bright">
               <span className="h-2 w-2 shrink-0 bg-ember" aria-hidden="true" />
-              {live.length > 0 ? "In play" : "Next up"}
+              {live.length > 0 ? t("home.inPlay") : t("home.nextUp")}
             </p>
             <h2 className="u-display mt-3 text-title">
-              {live.length > 0 ? "Live right now" : "Today's fixtures"}
+              {live.length > 0 ? t("home.liveNow") : t("home.todaysFixtures")}
             </h2>
           </div>
           <Link to="/fixtures" className="u-display text-xs text-ember hover:text-ember-bright">
-            All fixtures →
+            {t("home.allFixtures")}
           </Link>
         </div>
 
@@ -56,11 +58,12 @@ export default function Home() {
 
 function FixtureList({ matches }: { matches: Parameters<typeof MatchCard>[0]["match"][] }) {
   const scope = useReveal<HTMLDivElement>({ y: 20, stagger: 0.06 });
+  const t = useT();
 
   if (matches.length === 0) {
     return (
       <p className="u-rule border border-dashed px-6 py-16 text-center text-sm text-ink-muted">
-        No matches scheduled today. The season never really stops — check the fixture list.
+        {t("home.noneToday")}
       </p>
     );
   }
@@ -79,6 +82,7 @@ function FixtureList({ matches }: { matches: Parameters<typeof MatchCard>[0]["ma
 /* ------------------------------------------------------------------ */
 
 function Hero() {
+  const t = useT();
   const root = useRef<HTMLElement>(null);
   const backdrop = useRef<HTMLDivElement>(null);
 
@@ -146,7 +150,7 @@ function Hero() {
         {/* The one stamped-ribbon moment: text sits on a solid, skewed ember
             slab rather than floating orange text on the backdrop. */}
         <p className="js-hero u-slab u-eyebrow mb-8 inline-block text-ink">
-          Football&apos;s major leagues · live
+          {t("home.eyebrow")}
         </p>
 
         <h1
@@ -164,8 +168,7 @@ function Hero() {
 
         <div className="mt-8 flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
           <p className="js-hero max-w-md text-sm leading-relaxed text-ink-muted sm:text-base">
-            Scores, tables, squads. No ads, no logins, no nonsense — just what happened and who&apos;s
-            next.
+            {t("home.tagline")}
           </p>
 
           <div className="js-hero flex flex-col gap-3 sm:flex-row">
@@ -174,14 +177,14 @@ function Hero() {
               className="u-display w-full bg-ember px-6 py-3 text-center text-xs text-ink transition-all
                          duration-300 ease-out hover:bg-ember-bright hover:shadow-ember sm:w-auto"
             >
-              Today&apos;s matches
+              {t("home.ctaMatches")}
             </Link>
             <Link
               to="/standings"
               className="u-display w-full border border-ink-line px-6 py-3 text-center text-xs text-ink-bright
                          transition-colors duration-300 hover:border-ember hover:text-ember sm:w-auto"
             >
-              Tables
+              {t("home.ctaTables")}
             </Link>
           </div>
         </div>
@@ -193,12 +196,14 @@ function Hero() {
 }
 
 function ScrollCue() {
+  const t = useT();
+
   return (
     <div
       className="js-hero pointer-events-none absolute bottom-6 left-1/2 hidden -translate-x-1/2 sm:block"
       aria-hidden="true"
     >
-      <span className="u-eyebrow block text-[0.5625rem] text-ink-muted">Scroll</span>
+      <span className="u-eyebrow block text-[0.5625rem] text-ink-muted">{t("home.scroll")}</span>
       <span className="mx-auto mt-2 block h-8 w-px overflow-hidden bg-ink-line">
         <span className="block h-full w-full origin-top animate-[ticker_2.4s_ease-in-out_infinite] bg-ember" />
       </span>
@@ -210,14 +215,15 @@ function ScrollCue() {
 
 function Counters({ matchCount }: { matchCount: number }) {
   const scope = useReveal<HTMLElement>({ y: 24 });
+  const t = useT();
 
   return (
     <section ref={scope} className="u-frame u-tear py-14 sm:py-20">
       <dl className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">
-        <Counter label="Matches tracked" value={Math.max(matchCount, 380)} suffix="+" />
-        <Counter label="Leagues" value={8} />
-        <Counter label="Players indexed" value={4200} suffix="+" />
-        <Counter label="Refresh interval" value={5} suffix=" min" />
+        <Counter label={t("home.statMatches")} value={Math.max(matchCount, 380)} suffix="+" />
+        <Counter label={t("home.statLeagues")} value={10} />
+        <Counter label={t("home.statPlayers")} value={4200} suffix="+" />
+        <Counter label={t("home.statRefresh")} value={5} suffix={t("home.statRefreshUnit")} />
       </dl>
     </section>
   );

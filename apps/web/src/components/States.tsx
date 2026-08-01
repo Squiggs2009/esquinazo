@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api";
+import { useT } from "@/context/LanguageContext";
 
 /**
  * Failure and empty states. Both explain what happened and what the reader can
@@ -14,6 +15,7 @@ function Frame({ children }: { children: React.ReactNode }) {
 }
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  const t = useT();
   const api = error instanceof ApiError ? error : null;
 
   // Upstream provider failures are not the reader's fault and not retryable in
@@ -23,24 +25,29 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   const isRateLimited = api?.status === 429;
 
   const headline = isNotFound
-    ? "Nothing here"
+    ? t("state.notFoundTitle")
     : isRateLimited
-      ? "Too many requests"
+      ? t("state.rateLimitTitle")
       : isUpstream
-        ? "The data feed is down"
-        : "Could not load";
+        ? t("state.upstreamTitle")
+        : t("state.genericTitle");
 
+  // The upstream message is only ever English, so it is used as a last resort
+  // and the translated generic wins whenever the language is not English.
   const detail = isNotFound
-    ? "That record does not exist, or the feed no longer carries it."
+    ? t("state.notFoundDetail")
     : isRateLimited
-      ? "The upstream provider is throttling us. It clears within a minute."
+      ? t("state.rateLimitDetail")
       : isUpstream
-        ? "Our provider is not responding. Cached results are shown where we have them."
-        : (api?.message ?? "Something went wrong on the way to the server.");
+        ? t("state.upstreamDetail")
+        : t("state.genericDetail");
 
   return (
     <Frame>
-      <p className="u-eyebrow text-ember">Error{api?.status ? ` ${api.status}` : ""}</p>
+      <p className="u-eyebrow text-ember">
+        {t("state.errorBadge")}
+        {api?.status ? ` ${api.status}` : ""}
+      </p>
       <h2 className="u-display mt-3 text-title text-ink-bright">{headline}</h2>
       <p className="mt-3 text-sm leading-relaxed text-ink-muted">{detail}</p>
       {onRetry && !isNotFound && (
@@ -50,7 +57,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
           className="u-display mt-7 border border-ember px-5 py-2 text-xs uppercase tracking-wider
                      text-ember transition-colors duration-300 hover:bg-ember hover:text-ink"
         >
-          Try again
+          {t("state.retry")}
         </button>
       )}
     </Frame>

@@ -92,7 +92,7 @@ export function PlayerAvatar({
     <span
       aria-hidden="true"
       className={`${SIZES[size]} u-display grid shrink-0 place-items-center rounded-full
-                  bg-ember/12 text-ember ring-1 ring-inset ring-ember/25 ${className}`}
+                  bg-ember/[0.12] text-ember ring-1 ring-inset ring-ember/25 ${className}`}
     >
       {initials(name)}
     </span>

@@ -1,20 +1,25 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Wordmark } from "./Brand";
+import { LanguageToggle } from "./LanguageToggle";
+import { useT } from "@/context/LanguageContext";
 import { KOFI_URL } from "@/lib/links";
+import type { TranslationKey } from "@/lib/i18n";
 
-const LINKS = [
-  { to: "/", label: "Home", end: true },
-  { to: "/fixtures", label: "Fixtures" },
-  { to: "/standings", label: "Standings" },
-  { to: "/players", label: "Players" },
-  { to: "/news", label: "News" },
+const LINKS: Array<{ to: string; label: TranslationKey; end?: boolean }> = [
+  { to: "/", label: "nav.home", end: true },
+  { to: "/fixtures", label: "nav.fixtures" },
+  { to: "/standings", label: "nav.standings" },
+  { to: "/players", label: "nav.players" },
+  { to: "/nations", label: "nav.nations" },
+  { to: "/news", label: "nav.news" },
 ];
 
 export function Nav() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const t = useT();
 
   // Close the drawer on navigation, otherwise it hangs over the new page.
   useEffect(() => setOpen(false), [location.pathname]);
@@ -37,13 +42,13 @@ export function Nav() {
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-colors duration-500 ease-out
-                  ${scrolled || open ? "border-b-2 border-ink-line bg-ink/92 backdrop-blur-md" : "border-b-2 border-transparent"}`}
+                  ${scrolled || open ? "border-b-2 border-ink-line bg-ink/[0.92] backdrop-blur-md" : "border-b-2 border-transparent"}`}
     >
-      <div className="u-frame flex h-[var(--nav-h)] items-center justify-between gap-6">
+      <div className="u-frame flex h-[var(--nav-h)] items-center justify-between gap-4 sm:gap-6">
         <Wordmark />
 
-        <nav aria-label="Primary" className="hidden md:block">
-          <ul className="flex items-center gap-7 lg:gap-9">
+        <nav aria-label={t("nav.primary")} className="hidden md:block">
+          <ul className="flex items-center gap-6 lg:gap-8">
             {LINKS.map((link) => (
               <li key={link.to}>
                 <NavLink
@@ -57,14 +62,16 @@ export function Nav() {
                      ${isActive ? "after:w-full" : "after:w-0 hover:after:w-full"}`
                   }
                 >
-                  {link.label}
+                  {t(link.label)}
                 </NavLink>
               </li>
             ))}
           </ul>
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <LanguageToggle />
+
           <a
             href={KOFI_URL}
             target="_blank"
@@ -72,7 +79,7 @@ export function Nav() {
             className="u-btn-donate hidden sm:inline-flex"
           >
             <HeartIcon />
-            Donate
+            {t("nav.donate")}
           </a>
 
           <button
@@ -80,8 +87,8 @@ export function Nav() {
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             aria-controls="mobile-menu"
-            aria-label={open ? "Close menu" : "Open menu"}
-            className="grid h-10 w-10 place-items-center md:hidden"
+            aria-label={open ? t("nav.closeMenu") : t("nav.openMenu")}
+            className="grid h-10 w-10 shrink-0 place-items-center md:hidden"
           >
             <span className="relative block h-3.5 w-6">
               <span
@@ -119,7 +126,7 @@ export function Nav() {
                    ${isActive ? "text-ember" : "text-ink-bright"}`
                 }
               >
-                {link.label}
+                {t(link.label)}
               </NavLink>
             </li>
           ))}
@@ -132,7 +139,7 @@ export function Nav() {
           className="u-btn-donate justify-center py-3.5"
         >
           <HeartIcon />
-          Support Esquinazo
+          {t("nav.support")}
         </a>
       </div>
     </header>

@@ -2,13 +2,17 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PlayerAvatar, Chip, TeamBadge } from "@/components/Badges";
 import { LeagueRail } from "@/components/LeagueRail";
+import { PositionLegend } from "@/components/PositionLegend";
 import { PlayerCardSkeleton, SkeletonList } from "@/components/Skeleton";
 import { EmptyState, ErrorState } from "@/components/States";
 import { PageHeader, useTitle } from "@/components/PageShell";
+import { useT } from "@/context/LanguageContext";
 import { useSquad, useTeams } from "@/lib/queries";
 import { useReveal } from "@/lib/motion";
 import { DEFAULT_LEAGUE_ID, LEAGUES } from "@/lib/api";
+import { isKnownPosition, POSITION_ORDER } from "@/lib/i18n";
 import type { SquadPlayer } from "@/lib/api";
+import type { PositionCategory, TranslationKey } from "@/lib/i18n";
 
 /**
  * The API exposes players a squad at a time (GET /players?team=<id>), so this
@@ -18,7 +22,8 @@ import type { SquadPlayer } from "@/lib/api";
  * drives which competition is active.
  */
 export default function Players() {
-  useTitle("Players");
+  const t = useT();
+  useTitle(t("players.title"));
 
   const [params, setParams] = useSearchParams();
   const teamParam = Number(params.get("team"));
@@ -64,13 +69,14 @@ export default function Players() {
   }, [squad, search]);
 
   const league = LEAGUES.find((l) => l.id === competition);
+  const leagueName = league?.name ?? String(competition);
 
   return (
     <>
       <PageHeader
-        eyebrow="Squads"
-        title="Players"
-        lede="Choose a league and a club, then filter by name, position or shirt number."
+        eyebrow={t("players.eyebrow")}
+        title={t("players.title")}
+        lede={t("players.lede")}
       />
 
       <div className="u-frame grid gap-10 pb-section lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-14">
@@ -87,7 +93,9 @@ export default function Players() {
         <div className="min-w-0">
           <div className="mb-8 flex flex-col gap-4 border-b border-ink-line pb-6 sm:flex-row sm:items-end">
             <label className="flex-1">
-              <span className="u-eyebrow mb-2 block">{league?.name ?? competition} club</span>
+              <span className="u-eyebrow mb-2 block">
+                {t("players.club", { league: leagueName })}
+              </span>
               <select
                 value={teamId ?? ""}
                 onChange={(event) => setParams({ team: event.target.value })}
@@ -105,18 +113,20 @@ export default function Players() {
             </label>
 
             <label className="flex-1">
-              <span className="u-eyebrow mb-2 block">Search squad</span>
+              <span className="u-eyebrow mb-2 block">{t("players.search")}</span>
               <input
                 type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Name, position or number"
+                placeholder={t("players.searchPlaceholder")}
                 className="w-full border border-ink-line bg-ink-raised px-4 py-3 text-sm text-ink-bright
                            placeholder:text-ink-muted/70 transition-colors duration-300
                            hover:border-ink-muted focus:border-ember"
               />
             </label>
           </div>
+
+          <PositionLegend />
 
           {teamsError ? (
             <ErrorState error={teamsErrorDetail} onRetry={() => void refetchTeams()} />
@@ -125,9 +135,11 @@ export default function Players() {
               {team && (
                 <div className="mb-8 flex items-center gap-4">
                   <TeamBadge team={team} size="lg" />
-                  <div>
-                    <h2 className="u-display text-title text-ink-bright">{team.name}</h2>
-                    <p className="mt-1 text-xs text-ink-muted">{squad.length} registered</p>
+                  <div className="min-w-0">
+                    <h2 className="u-display truncate text-title text-ink-bright">{team.name}</h2>
+                    <p className="mt-1 text-xs text-ink-muted">
+                      {t("players.registered", { count: squad.length })}
+                    </p>
                   </div>
                 </div>
               )}
@@ -140,11 +152,11 @@ export default function Players() {
                 <ErrorState error={error} onRetry={() => void refetch()} />
               ) : filtered.length === 0 ? (
                 <EmptyState
-                  headline={search ? "No one matches that" : "Squad unavailable"}
+                  headline={search ? t("players.noMatchTitle") : t("players.unavailableTitle")}
                   detail={
                     search
-                      ? `Nothing in this squad matches “${search}”. Try a surname, or a position like "Midfielder".`
-                      : "The feed has no squad list for this club yet."
+                      ? t("players.noMatchDetail", { search })
+                      : t("players.unavailableDetail")
                   }
                   action={
                     search ? (
@@ -154,13 +166,13 @@ export default function Players() {
                         className="u-display border border-ember px-5 py-2 text-xs uppercase tracking-wider
                                    text-ember transition-colors duration-300 hover:bg-ember hover:text-ink"
                       >
-                        Clear search
+                        {t("players.clearSearch")}
                       </button>
                     ) : undefined
                   }
                 />
               ) : (
-                <PlayerGrid key={teamId} players={filtered} />
+                <GroupedSquad key={`${teamId}-${search}`} players={filtered} />
               )}
             </>
           )}
@@ -170,14 +182,60 @@ export default function Players() {
   );
 }
 
-function PlayerGrid({ players }: { players: SquadPlayer[] }) {
+/**
+ * Groups a squad into the four categories the provider reports, in playing
+ * order rather than alphabetically. Anything with an unrecognised position
+ * falls into a trailing "other" bucket instead of being dropped.
+ */
+function groupByPosition(players: SquadPlayer[]) {
+  const buckets = new Map<PositionCategory, SquadPlayer[]>();
+  const other: SquadPlayer[] = [];
+
+  for (const player of players) {
+    if (isKnownPosition(player.position)) {
+      const bucket = buckets.get(player.position);
+      if (bucket) bucket.push(player);
+      else buckets.set(player.position, [player]);
+    } else {
+      other.push(player);
+    }
+  }
+
+  const groups = POSITION_ORDER.filter((p) => buckets.has(p)).map(
+    (position) => [position, buckets.get(position) ?? []] as const,
+  );
+
+  return { groups, other };
+}
+
+function GroupedSquad({ players }: { players: SquadPlayer[] }) {
   const scope = useReveal<HTMLDivElement>({ y: 18, stagger: 0.03, duration: 0.7 });
+  const t = useT();
+  const { groups, other } = groupByPosition(players);
 
   return (
-    <div
-      ref={scope}
-      className="grid grid-cols-1 gap-px border border-ink-line bg-ink-line sm:grid-cols-2 lg:grid-cols-3"
-    >
+    <div ref={scope} className="flex flex-col gap-10">
+      {groups.map(([position, group]) => (
+        <section key={position}>
+          <h3 className="js-reveal u-eyebrow mb-4 flex items-center gap-2 text-ember">
+            <span className="h-2 w-2 shrink-0 bg-ember" aria-hidden="true" />
+            {t(`position.group${position}` as TranslationKey)}
+            <span className="tnum ml-1 text-ink-muted">{group.length}</span>
+          </h3>
+          <PlayerGrid players={group} />
+        </section>
+      ))}
+
+      {other.length > 0 && <PlayerGrid players={other} />}
+    </div>
+  );
+}
+
+function PlayerGrid({ players }: { players: SquadPlayer[] }) {
+  const t = useT();
+
+  return (
+    <div className="grid grid-cols-1 gap-px border border-ink-line bg-ink-line sm:grid-cols-2 lg:grid-cols-3">
       {players.map((player) => (
         <article
           key={player.id}
@@ -191,7 +249,7 @@ function PlayerGrid({ players }: { players: SquadPlayer[] }) {
               className="transition-transform duration-500 ease-out group-hover:scale-105"
             />
             <div className="min-w-0">
-              <h3 className="truncate font-semibold text-ink-bright">{player.name}</h3>
+              <h4 className="truncate font-semibold text-ink-bright">{player.name}</h4>
               <p className="mt-0.5 truncate text-xs text-ink-muted">
                 {player.number ? `#${player.number}` : "—"}
                 {player.age ? ` · ${player.age}` : ""}
@@ -201,7 +259,11 @@ function PlayerGrid({ players }: { players: SquadPlayer[] }) {
 
           {player.position && (
             <div className="mt-5">
-              <Chip tone="ember">{player.position}</Chip>
+              <Chip tone="ember">
+                {isKnownPosition(player.position)
+                  ? t(`position.${player.position}` as TranslationKey)
+                  : player.position}
+              </Chip>
             </div>
           )}
         </article>

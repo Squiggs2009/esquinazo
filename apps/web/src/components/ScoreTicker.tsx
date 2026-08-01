@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { isLive, type Fixture } from "@/lib/api";
+import { useT } from "@/context/LanguageContext";
 import { kickoffTime, scoreline, teamMark } from "@/lib/format";
 import { MOTION_OK } from "@/lib/motion";
 
@@ -9,6 +10,7 @@ import { MOTION_OK } from "@/lib/motion";
  * past at the same speed as two.
  */
 export function ScoreTicker({ matches }: { matches: Fixture[] }) {
+  const t = useT();
   if (matches.length === 0) return null;
 
   const duration = Math.max(28, matches.length * 6);
@@ -17,7 +19,7 @@ export function ScoreTicker({ matches }: { matches: Fixture[] }) {
   return (
     <div
       className="relative overflow-hidden border-y border-ink-line bg-ink-raised/70"
-      aria-label="Latest scores"
+      aria-label={t("home.liveNow")}
     >
       {/* Fade the edges so entries dissolve rather than clip. */}
       <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-ink to-transparent" />

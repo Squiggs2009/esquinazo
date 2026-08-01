@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useNews } from "@/lib/queries";
 import { articleDate } from "@/lib/format";
 import { useReveal } from "@/lib/motion";
+import { useT } from "@/context/LanguageContext";
 import type { NewsArticle } from "@/lib/api";
 
 /**
@@ -29,6 +30,7 @@ export function Headlines() {
  */
 function HeadlineRundown({ articles }: { articles: NewsArticle[] }) {
   const scope = useReveal<HTMLElement>({ y: 20, stagger: 0.06 });
+  const t = useT();
   const [lead, ...rest] = articles;
   if (!lead) return null;
 
@@ -36,11 +38,11 @@ function HeadlineRundown({ articles }: { articles: NewsArticle[] }) {
     <section ref={scope} className="u-frame border-b border-ink-line py-14 sm:py-20">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="js-reveal u-eyebrow text-ember">Headlines</p>
-          <h2 className="js-reveal u-display mt-3 text-title">Around the leagues</h2>
+          <p className="js-reveal u-eyebrow text-ember">{t("home.headlines")}</p>
+          <h2 className="js-reveal u-display mt-3 text-title">{t("home.aroundLeagues")}</h2>
         </div>
         <Link to="/news" className="js-reveal u-display text-xs text-ember hover:text-ember-bright">
-          All news →
+          {t("home.allNews")}
         </Link>
       </div>
 

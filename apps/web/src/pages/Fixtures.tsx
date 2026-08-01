@@ -4,6 +4,7 @@ import { MatchCard } from "@/components/MatchCard";
 import { MatchCardSkeleton, SkeletonList } from "@/components/Skeleton";
 import { EmptyState, ErrorState } from "@/components/States";
 import { PageHeader, useTitle } from "@/components/PageShell";
+import { useT } from "@/context/LanguageContext";
 import { Chip } from "@/components/Badges";
 import { useFixtures } from "@/lib/queries";
 import { groupByDay, weekRange } from "@/lib/format";
@@ -11,7 +12,8 @@ import { DEFAULT_LEAGUE_ID, isLive, LEAGUES } from "@/lib/api";
 import { useReveal } from "@/lib/motion";
 
 export default function Fixtures() {
-  useTitle("Fixtures");
+  const t = useT();
+  useTitle(t("fixtures.title"));
 
   const [competition, setCompetition] = useState(DEFAULT_LEAGUE_ID);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -26,17 +28,29 @@ export default function Fixtures() {
   const matches = data?.data.fixtures ?? [];
   const liveCount = matches.filter(isLive).length;
   const league = LEAGUES.find((l) => l.id === competition);
+  const leagueName = league?.name ?? String(competition);
+
+  const weekLabel =
+    weekOffset === 0
+      ? t("fixtures.thisWeek")
+      : weekOffset === -1
+        ? t("fixtures.lastWeek")
+        : weekOffset === 1
+          ? t("fixtures.nextWeek")
+          : week.rangeText;
 
   return (
     <>
       <PageHeader
-        eyebrow="Matches"
-        title="Fixtures"
-        lede="One week at a time - scheduled and completed matches in the selected competition."
+        eyebrow={t("fixtures.eyebrow")}
+        title={t("fixtures.title")}
+        lede={t("fixtures.lede")}
         aside={
           liveCount > 0 ? (
             <Chip tone="live">
-              {liveCount} live {liveCount === 1 ? "match" : "matches"}
+              {liveCount === 1
+                ? t("fixtures.liveOne", { count: liveCount })
+                : t("fixtures.liveMany", { count: liveCount })}
             </Chip>
           ) : undefined
         }
@@ -54,13 +68,17 @@ export default function Fixtures() {
         <div className="min-w-0">
           {/* Keep the heading stable while a refetch is in flight. */}
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-ink-line pb-4">
-            <h2 className="u-display text-sm text-ink-bright">{league?.name ?? competition}</h2>
+            <h2 className="u-display text-sm text-ink-bright">{leagueName}</h2>
             {isFetching && !isPending && (
-              <span className="u-eyebrow text-ink-muted">Updating…</span>
+              <span className="u-eyebrow text-ink-muted">{t("fixtures.updating")}</span>
             )}
           </div>
 
-          <WeekNav label={week.label} onPrev={() => setWeekOffset((w) => w - 1)} onNext={() => setWeekOffset((w) => w + 1)} />
+          <WeekNav
+            label={weekLabel}
+            onPrev={() => setWeekOffset((w) => w - 1)}
+            onNext={() => setWeekOffset((w) => w + 1)}
+          />
 
           {isPending ? (
             <SkeletonList count={8}>{() => <MatchCardSkeleton />}</SkeletonList>
@@ -68,8 +86,8 @@ export default function Fixtures() {
             <ErrorState error={error} onRetry={() => void refetch()} />
           ) : matches.length === 0 ? (
             <EmptyState
-              headline="No matches this week"
-              detail={`Nothing scheduled for ${league?.name ?? competition} during ${week.rangeText}. Try the next or previous week - mid-season breaks and international windows leave gaps like this.`}
+              headline={t("fixtures.emptyTitle")}
+              detail={t("fixtures.emptyDetail", { league: leagueName, range: week.rangeText })}
             />
           ) : (
             <DayGroups key={`${competition}-${weekOffset}`} matches={matches} />
@@ -81,12 +99,14 @@ export default function Fixtures() {
 }
 
 function WeekNav({ label, onPrev, onNext }: { label: string; onPrev: () => void; onNext: () => void }) {
+  const t = useT();
+
   return (
     <div className="mb-8 flex items-center justify-center gap-4 sm:justify-start">
       <button
         type="button"
         onClick={onPrev}
-        aria-label="Previous week"
+        aria-label={t("fixtures.prevWeekLabel")}
         className="grid h-9 w-9 shrink-0 place-items-center border border-ink-line text-ink-muted
                    transition-colors duration-300 hover:border-ember hover:text-ember"
       >
@@ -96,7 +116,7 @@ function WeekNav({ label, onPrev, onNext }: { label: string; onPrev: () => void;
       <button
         type="button"
         onClick={onNext}
-        aria-label="Next week"
+        aria-label={t("fixtures.nextWeekLabel")}
         className="grid h-9 w-9 shrink-0 place-items-center border border-ink-line text-ink-muted
                    transition-colors duration-300 hover:border-ember hover:text-ember"
       >
@@ -133,7 +153,7 @@ function DayGroups({ matches }: { matches: Parameters<typeof MatchCard>[0]["matc
     <div ref={scope} className="flex flex-col gap-12">
       {days.map(([day, dayMatches]) => (
         <section key={day}>
-          <h3 className="js-reveal u-eyebrow sticky top-[var(--nav-h)] z-10 bg-ink/92 py-3 backdrop-blur-sm">
+          <h3 className="js-reveal u-eyebrow sticky top-[var(--nav-h)] z-10 bg-ink/[0.92] py-3 backdrop-blur-sm">
             {day}
           </h3>
           <div className="border-t border-ink-line">

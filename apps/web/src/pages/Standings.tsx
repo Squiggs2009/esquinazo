@@ -5,13 +5,15 @@ import { TeamBadge } from "@/components/Badges";
 import { SkeletonList, TableRowSkeleton } from "@/components/Skeleton";
 import { EmptyState, ErrorState } from "@/components/States";
 import { PageHeader, useTitle } from "@/components/PageShell";
+import { useT } from "@/context/LanguageContext";
 import { useStandings } from "@/lib/queries";
 import { formGuide } from "@/lib/format";
 import { DEFAULT_LEAGUE_ID, LEAGUES, type StandingRow } from "@/lib/api";
 import { useReveal } from "@/lib/motion";
 
 export default function Standings() {
-  useTitle("Standings");
+  const t = useT();
+  useTitle(t("standings.title"));
 
   const [competition, setCompetition] = useState(DEFAULT_LEAGUE_ID);
   const { data, isPending, isError, error, refetch } = useStandings(competition);
@@ -24,9 +26,9 @@ export default function Standings() {
   return (
     <>
       <PageHeader
-        eyebrow="Table"
-        title="Standings"
-        lede="Position, record and recent form. Green marks the continental places, red the drop."
+        eyebrow={t("standings.eyebrow")}
+        title={t("standings.title")}
+        lede={t("standings.lede")}
       />
 
       <div className="u-frame grid gap-10 pb-section lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-14">
@@ -43,8 +45,8 @@ export default function Standings() {
             <ErrorState error={error} onRetry={() => void refetch()} />
           ) : !hasRows ? (
             <EmptyState
-              headline="No table yet"
-              detail="Standings appear once the competition has played its opening round. Cup formats may not produce one at all."
+              headline={t("standings.emptyTitle")}
+              detail={t("standings.emptyDetail")}
             />
           ) : (
             <div key={competition} className="flex flex-col gap-12">
@@ -68,6 +70,7 @@ export default function Standings() {
 
 function Table({ rows, caption }: { rows: StandingRow[]; caption?: string }) {
   const scope = useReveal<HTMLDivElement>({ y: 14, stagger: 0.02, duration: 0.6 });
+  const t = useT();
 
   return (
     <div ref={scope} className="overflow-x-auto">
@@ -80,28 +83,28 @@ function Table({ rows, caption }: { rows: StandingRow[]; caption?: string }) {
               #
             </th>
             <th scope="col" className="py-3 font-normal">
-              Club
+              {t("standings.club")}
             </th>
             <th scope="col" className="w-12 py-3 text-right font-normal">
-              Pl
+              {t("standings.played")}
             </th>
             <th scope="col" className="w-10 py-3 text-right font-normal">
-              W
+              {t("standings.won")}
             </th>
             <th scope="col" className="w-10 py-3 text-right font-normal">
-              D
+              {t("standings.drawn")}
             </th>
             <th scope="col" className="w-10 py-3 text-right font-normal">
-              L
+              {t("standings.lost")}
             </th>
             <th scope="col" className="w-14 py-3 text-right font-normal">
-              GD
+              {t("standings.goalDiff")}
             </th>
             <th scope="col" className="w-14 py-3 text-right font-normal">
-              Pts
+              {t("standings.points")}
             </th>
             <th scope="col" className="hidden w-32 py-3 pl-6 font-normal sm:table-cell">
-              Form
+              {t("standings.form")}
             </th>
           </tr>
         </thead>
@@ -146,9 +149,9 @@ function Table({ rows, caption }: { rows: StandingRow[]; caption?: string }) {
       </table>
 
       <p className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-xs text-ink-muted">
-        <Legend className="bg-emerald-500" label="Champions League" />
-        <Legend className="bg-ember" label="Europa / play-off" />
-        <Legend className="bg-blood" label="Relegation" />
+        <Legend className="bg-emerald-500" label={t("standings.zoneChampions")} />
+        <Legend className="bg-ember" label={t("standings.zoneEuropa")} />
+        <Legend className="bg-blood" label={t("standings.zoneRelegation")} />
       </p>
     </div>
   );
@@ -189,6 +192,7 @@ const RESULT_STYLES = {
 } as const;
 
 function FormDots({ form }: { form: string | null | undefined }) {
+  const t = useT();
   const results = formGuide(form);
 
   if (results.length === 0) {
@@ -196,7 +200,10 @@ function FormDots({ form }: { form: string | null | undefined }) {
   }
 
   return (
-    <span className="flex gap-1.5" aria-label={`Recent form: ${results.join(", ")}`}>
+    <span
+      className="flex gap-1.5"
+      aria-label={t("standings.recentForm", { results: results.join(", ") })}
+    >
       {results.map((result, index) => (
         <span
           key={index}

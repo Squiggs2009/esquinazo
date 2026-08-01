@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   ApiError,
+  getFixtureDetail,
   getFixtures,
   getNews,
   getSquad,
   getStandings,
   getTeams,
   getTransfers,
+  isLive,
   type FixturesQuery,
 } from "./api";
 
@@ -29,6 +31,25 @@ export function useFixtures(query: FixturesQuery = {}) {
     queryFn: () => getFixtures(query),
     staleTime: MINUTE,
     refetchInterval: MINUTE,
+    retry: retryPolicy,
+  });
+}
+
+/**
+ * A single match with events, lineups and statistics. Polls on the same minute
+ * cadence as the fixture list while the match is actually in play, and stops
+ * once it is not - a finished match's events never change again.
+ */
+export function useFixtureDetail(fixtureId: number | undefined) {
+  return useQuery({
+    queryKey: ["fixture-detail", fixtureId],
+    queryFn: () => getFixtureDetail(fixtureId as number),
+    enabled: typeof fixtureId === "number" && Number.isFinite(fixtureId),
+    staleTime: MINUTE,
+    refetchInterval: (query) => {
+      const detail = query.state.data?.data.detail;
+      return detail && isLive(detail) ? MINUTE : false;
+    },
     retry: retryPolicy,
   });
 }

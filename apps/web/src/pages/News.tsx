@@ -1,6 +1,7 @@
 import { ArticleCardSkeleton, SkeletonList } from "@/components/Skeleton";
 import { EmptyState, ErrorState } from "@/components/States";
 import { PageHeader, useTitle } from "@/components/PageShell";
+import { useT } from "@/context/LanguageContext";
 import { useNews } from "@/lib/queries";
 import { articleDate } from "@/lib/format";
 import { useReveal } from "@/lib/motion";
@@ -13,7 +14,8 @@ import { ApiError } from "@/lib/api";
  * than an error, because nothing is broken.
  */
 export default function News() {
-  useTitle("News");
+  const t = useT();
+  useTitle(t("news.title"));
 
   const { data, isPending, isError, error, refetch } = useNews();
   const articles = data?.data.articles ?? [];
@@ -22,9 +24,9 @@ export default function News() {
   return (
     <>
       <PageHeader
-        eyebrow="Reading"
-        title="News"
-        lede="Transfer business, injury news and match reports from across the continent."
+        eyebrow={t("news.eyebrow")}
+        title={t("news.title")}
+        lede={t("news.lede")}
       />
 
       <div className="u-frame pb-section">
@@ -34,15 +36,15 @@ export default function News() {
           </div>
         ) : notPublishedYet ? (
           <EmptyState
-            headline="Not wired up yet"
-            detail="The news feed has not shipped. Everything else on the site runs on live data — fixtures and tables update every minute."
+            headline={t("news.notWiredTitle")}
+            detail={t("news.notWiredDetail")}
           />
         ) : isError ? (
           <ErrorState error={error} onRetry={() => void refetch()} />
         ) : articles.length === 0 ? (
           <EmptyState
-            headline="Nothing published"
-            detail="No stories have come through the feed today. Try the fixtures page for what is actually happening."
+            headline={t("news.emptyTitle")}
+            detail={t("news.emptyDetail")}
           />
         ) : (
           <ArticleGrid articles={articles} />

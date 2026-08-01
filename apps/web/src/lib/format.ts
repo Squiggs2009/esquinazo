@@ -80,23 +80,20 @@ function toLocalISODate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-/** The Monday-Sunday window `offset` weeks from the current week. */
-export function weekRange(offset: number): {
-  from: string;
-  to: string;
-  label: string;
-  rangeText: string;
-} {
+/**
+ * The Monday-Sunday window `offset` weeks from the current week. Returns only
+ * the dates and a locale-formatted range; the "This week"/"Next week" wording
+ * is the caller's, since it has to come from the translation dictionary.
+ */
+export function weekRange(offset: number): { from: string; to: string; rangeText: string } {
   const monday = startOfWeek(new Date());
   monday.setDate(monday.getDate() + offset * 7);
   const sunday = new Date(monday);
   sunday.setDate(sunday.getDate() + 6);
 
   const rangeText = `${weekLabelFormatter.format(monday)} – ${weekLabelFormatter.format(sunday)}`;
-  const label =
-    offset === 0 ? "This week" : offset === -1 ? "Last week" : offset === 1 ? "Next week" : rangeText;
 
-  return { from: toLocalISODate(monday), to: toLocalISODate(sunday), label, rangeText };
+  return { from: toLocalISODate(monday), to: toLocalISODate(sunday), rangeText };
 }
 
 /** Groups fixtures under a day heading, preserving chronological order. */

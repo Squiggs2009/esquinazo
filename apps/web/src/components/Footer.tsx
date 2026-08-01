@@ -1,25 +1,33 @@
 import { Link } from "react-router-dom";
 import { Monogram } from "./Brand";
+import { useT } from "@/context/LanguageContext";
 import { DATA_PROVIDER, KOFI_URL, SPONSOR } from "@/lib/links";
+import type { TranslationKey } from "@/lib/i18n";
 
-const COLUMNS = [
+const COLUMNS: Array<{
+  heading: TranslationKey;
+  links: Array<{ to: string; label: TranslationKey }>;
+}> = [
   {
-    heading: "Matches",
+    heading: "footer.matches",
     links: [
-      { to: "/fixtures", label: "Fixtures" },
-      { to: "/standings", label: "Standings" },
+      { to: "/fixtures", label: "nav.fixtures" },
+      { to: "/standings", label: "nav.standings" },
     ],
   },
   {
-    heading: "People",
+    heading: "footer.people",
     links: [
-      { to: "/players", label: "Players" },
-      { to: "/news", label: "News" },
+      { to: "/players", label: "nav.players" },
+      { to: "/nations", label: "nav.nations" },
+      { to: "/news", label: "nav.news" },
     ],
   },
 ];
 
 export function Footer() {
+  const t = useT();
+
   return (
     <footer className="mt-section">
       {/* Printed-programme double rule: a heavy line with a fainter echo
@@ -32,19 +40,18 @@ export function Footer() {
           <div>
             <Monogram className="h-9 w-9" />
             <p className="mt-5 max-w-xs text-sm leading-relaxed text-ink-muted">
-              Live scores, tables and squads across Europe&apos;s major leagues. No accounts, no
-              tracking, no interstitials.
+              {t("footer.blurb")}
             </p>
           </div>
 
           {COLUMNS.map((column) => (
-            <nav key={column.heading} aria-label={column.heading}>
-              <p className="u-eyebrow mb-4">{column.heading}</p>
+            <nav key={column.heading} aria-label={t(column.heading)}>
+              <p className="u-eyebrow mb-4">{t(column.heading)}</p>
               <ul className="flex flex-col gap-2.5">
                 {column.links.map((link) => (
                   <li key={link.to}>
                     <Link to={link.to} className="u-link text-sm">
-                      {link.label}
+                      {t(link.label)}
                     </Link>
                   </li>
                 ))}
@@ -53,17 +60,12 @@ export function Footer() {
           ))}
 
           <div>
-            <p className="u-eyebrow mb-4">Keep it running</p>
+            <p className="u-eyebrow mb-4">{t("footer.keepRunning")}</p>
             <p className="mb-5 text-sm leading-relaxed text-ink-muted">
-              Esquinazo is free and ad-free. Hosting is not.
+              {t("footer.keepRunningBlurb")}
             </p>
-            <a
-              href={KOFI_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="u-btn-donate"
-            >
-              Buy a coffee
+            <a href={KOFI_URL} target="_blank" rel="noopener noreferrer" className="u-btn-donate">
+              {t("footer.buyCoffee")}
             </a>
           </div>
         </div>
@@ -73,7 +75,7 @@ export function Footer() {
                      sm:flex-row sm:items-center sm:justify-between"
         >
           <p className="text-xs text-ink-muted">
-            Powered by{" "}
+            {t("footer.poweredBy")}{" "}
             <a
               href={SPONSOR.url}
               target="_blank"
@@ -85,13 +87,8 @@ export function Footer() {
           </p>
 
           <p className="text-xs text-ink-muted">
-            Match data from{" "}
-            <a
-              href={DATA_PROVIDER.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="u-link"
-            >
+            {t("footer.dataFrom")}{" "}
+            <a href={DATA_PROVIDER.url} target="_blank" rel="noopener noreferrer" className="u-link">
               {DATA_PROVIDER.name}
             </a>
           </p>
