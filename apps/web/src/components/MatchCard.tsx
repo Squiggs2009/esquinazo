@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { TeamBadge } from "./Badges";
 import { isLive, leagueCodeFor, type Fixture, type Team } from "@/lib/api";
-import { kickoffTime, scoreline, statusLabel } from "@/lib/format";
+import { useStatusLabel, useT } from "@/context/LanguageContext";
+import { matchTimeParts, scoreline } from "@/lib/format";
 
 /**
  * A fixture row rather than a boxed card: hairline separators, the scoreline
@@ -14,12 +15,15 @@ import { kickoffTime, scoreline, statusLabel } from "@/lib/format";
  * list and needs it.
  */
 export function MatchCard({ match, showLeague = false }: { match: Fixture; showLeague?: boolean }) {
+  const t = useT();
+  const statusLabel = useStatusLabel();
   const live = isLive(match);
   const { home, away } = scoreline(match);
   const played = home !== null && away !== null;
   const status = match.fixture.status.short;
   const finished = status === "FT" || status === "AET" || status === "PEN";
   const leagueCode = showLeague ? leagueCodeFor(match.league.id) : undefined;
+  const { time, zone } = matchTimeParts(match.fixture.date);
 
   // Dim the losing side once a result stands - the eye should find the winner
   // without reading the numbers.
@@ -44,16 +48,31 @@ export function MatchCard({ match, showLeague = false }: { match: Fixture; showL
       />
 
       <div className="flex items-center gap-4 py-4 pl-5 pr-4 sm:gap-6 sm:pl-7 sm:pr-6">
-        <div className="w-12 shrink-0 sm:w-16">
+        {/* Wide enough for "05:00 PM" on one line with the zone beneath it,
+            rather than breaking the clock itself across two. */}
+        <div className="w-16 shrink-0 sm:w-20">
           {live ? (
             <span className="u-eyebrow flex items-center gap-1.5 text-ember-bright">
               <span className="h-1.5 w-1.5 animate-live rounded-full bg-ember-bright" />
-              {match.fixture.status.elapsed ? `${match.fixture.status.elapsed}'` : "Live"}
+              {match.fixture.status.elapsed
+                ? `${match.fixture.status.elapsed}'`
+                : t("match.live")}
             </span>
+          ) : finished ? (
+            <span className="block text-sm text-ink-muted">{statusLabel(status)}</span>
           ) : (
-            <span className="tnum block text-sm text-ink-muted">
-              {finished ? statusLabel(status) : kickoffTime(match.fixture.date)}
-            </span>
+            <>
+              {/* Intl separates the clock from AM/PM with a narrow *no-break*
+                  space, so this cannot wrap - it has to fit on one line. Sized
+                  down a step on mobile to guarantee that for the widest form
+                  ("04:00 p.m."), which is wider than "05:00 PM". */}
+              <span className="tnum block text-xs text-ink-muted sm:text-sm">{time}</span>
+              {zone && (
+                <span className="mt-0.5 block text-[0.625rem] leading-none text-ink-muted/70">
+                  {zone}
+                </span>
+              )}
+            </>
           )}
 
           {showLeague && leagueCode && (

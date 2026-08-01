@@ -36,9 +36,22 @@ export function teamHue(seed: string): number {
   return 8 + (hash % 37);
 }
 
-const kickoffFormatter = new Intl.DateTimeFormat(undefined, {
+/**
+ * Kick-off times.
+ *
+ * Passing no `timeZone` is what makes Intl resolve to the viewer's own zone,
+ * so a UTC instant from the API renders as local time everywhere without any
+ * conversion of our own - never hardcode a zone here.
+ *
+ * `timeZoneName: "short"` gives the familiar abbreviation when the locale has
+ * one (CDT for a US viewer, CEST for a Spanish one) and falls back to a GMT
+ * offset otherwise. "shortGeneric" would spell out "United Kingdom Time",
+ * which no fixture row has space for.
+ */
+const matchTimeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: "2-digit",
   minute: "2-digit",
+  timeZoneName: "short",
 });
 
 const dayFormatter = new Intl.DateTimeFormat(undefined, {
@@ -53,7 +66,27 @@ const articleFormatter = new Intl.DateTimeFormat(undefined, {
   year: "numeric",
 });
 
-export const kickoffTime = (iso: string) => kickoffFormatter.format(new Date(iso));
+/** Localised kick-off, zone included: "05:00 PM CDT", "23:00 GMT+1". */
+export const formatMatchTime = (iso: string) => matchTimeFormatter.format(new Date(iso));
+
+/**
+ * The same value split into its clock and zone halves, for layouts too narrow
+ * to take the joined string on one line. Uses formatToParts rather than
+ * splitting the formatted string, because where the zone lands - and whether a
+ * separator precedes it - varies by locale.
+ */
+export function matchTimeParts(iso: string): { time: string; zone: string } {
+  const parts = matchTimeFormatter.formatToParts(new Date(iso));
+  const zone = parts.find((part) => part.type === "timeZoneName")?.value ?? "";
+  const time = parts
+    .filter((part) => part.type !== "timeZoneName")
+    .map((part) => part.value)
+    .join("")
+    .trim();
+
+  return { time, zone };
+}
+
 export const matchDay = (iso: string) => dayFormatter.format(new Date(iso));
 export const articleDate = (iso: string) => articleFormatter.format(new Date(iso));
 
@@ -124,30 +157,12 @@ export function scoreline(fixture: Fixture): { home: number | null; away: number
   };
 }
 
-/** API-Football short status codes. */
-const STATUS_COPY: Record<string, string> = {
-  TBD: "Time TBD",
-  NS: "Scheduled",
-  "1H": "1st half",
-  HT: "Half-time",
-  "2H": "2nd half",
-  ET: "Extra time",
-  BT: "Break",
-  P: "Penalties",
-  SUSP: "Suspended",
-  INT: "Interrupted",
-  FT: "Full-time",
-  AET: "After extra time",
-  PEN: "On penalties",
-  PST: "Postponed",
-  CANC: "Cancelled",
-  ABD: "Abandoned",
-  AWD: "Awarded",
-  WO: "Walkover",
-  LIVE: "Live",
-};
-
-export const statusLabel = (status: string) => STATUS_COPY[status] ?? status.replace(/_/g, " ");
+/*
+ * Status wording lives in the translation dictionary, not here - see
+ * useStatusLabel in context/LanguageContext.tsx. It was a plain lookup in this
+ * file until the language toggle shipped, at which point statuses were the
+ * last strings on a match row still stuck in English.
+ */
 
 /** Splits "WWDLW" into the five most recent results, newest last. */
 export function formGuide(form: string | null | undefined): Array<"W" | "D" | "L"> {

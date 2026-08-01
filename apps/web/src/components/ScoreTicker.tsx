@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { isLive, type Fixture } from "@/lib/api";
 import { useT } from "@/context/LanguageContext";
-import { kickoffTime, scoreline, teamMark } from "@/lib/format";
+import { formatMatchTime, scoreline, teamMark } from "@/lib/format";
 import { MOTION_OK } from "@/lib/motion";
 
 /**
@@ -61,7 +61,7 @@ function TickerItem({ match, duplicate }: { match: Fixture; duplicate: boolean }
       </span>
 
       <span className="tnum u-display text-sm text-ink-bright">
-        {played ? `${home}–${away}` : kickoffTime(match.fixture.date)}
+        {played ? `${home}–${away}` : formatMatchTime(match.fixture.date)}
       </span>
 
       <span className="u-display text-xs text-ink-muted transition-colors group-hover:text-ink-bright">

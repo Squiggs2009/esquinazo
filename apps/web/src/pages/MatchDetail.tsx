@@ -3,11 +3,11 @@ import { Chip, TeamBadge } from "@/components/Badges";
 import { Shimmer } from "@/components/Skeleton";
 import { EmptyState, ErrorState } from "@/components/States";
 import { useTitle } from "@/components/PageShell";
-import { useT } from "@/context/LanguageContext";
+import { useStatusLabel, useT } from "@/context/LanguageContext";
 import { useFixtureDetail } from "@/lib/queries";
 import { isLive } from "@/lib/api";
 import type { FixtureDetail, Lineup, MatchEvent, Team, TeamStatistics } from "@/lib/api";
-import { kickoffTime, matchDay, scoreline, statusLabel } from "@/lib/format";
+import { formatMatchTime, matchDay, scoreline } from "@/lib/format";
 import { useReveal } from "@/lib/motion";
 import type { TranslationKey } from "@/lib/i18n";
 
@@ -62,6 +62,7 @@ export default function MatchDetail() {
 function MatchView({ match }: { match: FixtureDetail }) {
   const scope = useReveal<HTMLDivElement>({ y: 22 });
   const t = useT();
+  const statusLabel = useStatusLabel();
   const { home, away } = scoreline(match);
   const played = home !== null && away !== null;
   const live = isLive(match);
@@ -104,7 +105,7 @@ function MatchView({ match }: { match: FixtureDetail }) {
                 </p>
               ) : (
                 <p className="tnum u-display text-title text-ink-bright">
-                  {kickoffTime(match.fixture.date)}
+                  {formatMatchTime(match.fixture.date)}
                 </p>
               )}
               <p className="u-eyebrow mt-3">{matchDay(match.fixture.date)}</p>
@@ -130,7 +131,7 @@ function MatchView({ match }: { match: FixtureDetail }) {
             <Fact label={t("match.venue")} value={match.fixture.venue?.name ?? "—"} />
             <Fact
               label={t("match.kickoff")}
-              value={`${matchDay(match.fixture.date)} · ${kickoffTime(match.fixture.date)}`}
+              value={`${matchDay(match.fixture.date)} · ${formatMatchTime(match.fixture.date)}`}
             />
             <Fact label={t("match.status")} value={statusLabel(status)} />
             {match.score?.halftime?.home !== null && match.score?.halftime !== undefined && (

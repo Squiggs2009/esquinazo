@@ -170,6 +170,27 @@ const en = {
   "match.stats": "Match stats",
   "match.statsEmpty": "Statistics appear once the match is under way.",
 
+  /* Match status - keyed by API-Football's short codes */
+  "status.TBD": "Time TBD",
+  "status.NS": "Scheduled",
+  "status.1H": "1st half",
+  "status.HT": "Half-time",
+  "status.2H": "2nd half",
+  "status.ET": "Extra time",
+  "status.BT": "Break",
+  "status.P": "Penalties",
+  "status.SUSP": "Suspended",
+  "status.INT": "Interrupted",
+  "status.FT": "Full-time",
+  "status.AET": "After extra time",
+  "status.PEN": "On penalties",
+  "status.PST": "Postponed",
+  "status.CANC": "Cancelled",
+  "status.ABD": "Abandoned",
+  "status.AWD": "Awarded",
+  "status.WO": "Walkover",
+  "status.LIVE": "Live",
+
   /* Event labels */
   "event.Goal": "Goal",
   "event.ownGoal": "Own goal",
@@ -395,6 +416,26 @@ const es: Record<TranslationKey, string> = {
   "match.stats": "Estadísticas",
   "match.statsEmpty": "Las estadísticas aparecen cuando el partido está en marcha.",
 
+  "status.TBD": "Hora por definir",
+  "status.NS": "Programado",
+  "status.1H": "1ª parte",
+  "status.HT": "Descanso",
+  "status.2H": "2ª parte",
+  "status.ET": "Prórroga",
+  "status.BT": "Pausa",
+  "status.P": "Penaltis",
+  "status.SUSP": "Suspendido",
+  "status.INT": "Interrumpido",
+  "status.FT": "Final",
+  "status.AET": "Final tras prórroga",
+  "status.PEN": "Final en penaltis",
+  "status.PST": "Aplazado",
+  "status.CANC": "Cancelado",
+  "status.ABD": "Abandonado",
+  "status.AWD": "Adjudicado",
+  "status.WO": "Incomparecencia",
+  "status.LIVE": "En vivo",
+
   "event.Goal": "Gol",
   "event.ownGoal": "Gol en propia",
   "event.penalty": "Penalti",
@@ -481,6 +522,37 @@ export function translate(lang: Lang, key: TranslationKey, vars?: TranslationVar
  * Maps the provider's English position names onto dictionary keys. Unknown
  * values pass through untranslated rather than being dropped.
  */
+/**
+ * API-Football short status codes to dictionary keys. Returns null for a code
+ * the provider adds later, so callers can fall back to showing it rather than
+ * rendering a raw key.
+ */
+const STATUS_KEYS: Record<string, TranslationKey> = {
+  TBD: "status.TBD",
+  NS: "status.NS",
+  "1H": "status.1H",
+  HT: "status.HT",
+  "2H": "status.2H",
+  ET: "status.ET",
+  BT: "status.BT",
+  P: "status.P",
+  SUSP: "status.SUSP",
+  INT: "status.INT",
+  FT: "status.FT",
+  AET: "status.AET",
+  PEN: "status.PEN",
+  PST: "status.PST",
+  CANC: "status.CANC",
+  ABD: "status.ABD",
+  AWD: "status.AWD",
+  WO: "status.WO",
+  LIVE: "status.LIVE",
+};
+
+export function statusTranslationKey(short: string): TranslationKey | null {
+  return STATUS_KEYS[short] ?? null;
+}
+
 export const POSITION_ORDER = ["Goalkeeper", "Defender", "Midfielder", "Attacker"] as const;
 export type PositionCategory = (typeof POSITION_ORDER)[number];
 

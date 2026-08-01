@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_LANG,
+  statusTranslationKey,
   translate,
   type Lang,
   type TranslationKey,
@@ -76,4 +77,21 @@ export function useLanguage(): LanguageValue {
 /** Convenience for the common case of only needing the translate function. */
 export function useT() {
   return useLanguage().t;
+}
+
+/**
+ * Translates an API-Football status short code ("FT", "1H") for display.
+ * An unrecognised code - the provider adding one we have not seen - falls back
+ * to the code itself rather than a blank or a raw dictionary key.
+ */
+export function useStatusLabel() {
+  const t = useT();
+
+  return useCallback(
+    (short: string) => {
+      const key = statusTranslationKey(short);
+      return key ? t(key) : short.replace(/_/g, " ");
+    },
+    [t],
+  );
 }
