@@ -3,6 +3,7 @@ import {
   ApiError,
   getFixtureDetail,
   getFixtures,
+  getFixturesByDate,
   getNews,
   getSquad,
   getStandings,
@@ -33,6 +34,37 @@ export function useFixtures(query: FixturesQuery = {}) {
     refetchInterval: MINUTE,
     retry: retryPolicy,
   });
+}
+
+/**
+ * Today's matches across every configured league, for the homepage rundown.
+ *
+ * The date is the viewer's local calendar day, while the provider interprets
+ * it as UTC - close enough for European and American kick-off times, and it
+ * keeps one cache entry per day rather than one per timezone.
+ */
+export function useTodayFixtures() {
+  const date = todayISODate();
+
+  return useQuery({
+    queryKey: ["fixtures-by-date", date],
+    queryFn: () => getFixturesByDate(date),
+    staleTime: MINUTE,
+    refetchInterval: MINUTE,
+    retry: retryPolicy,
+  });
+}
+
+/**
+ * Local calendar date, not toISOString().slice(0, 10) - that converts through
+ * UTC first and shifts the day backward for anyone in a positive UTC offset
+ * whenever local midnight falls before UTC midnight.
+ */
+function todayISODate(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
 }
 
 /**

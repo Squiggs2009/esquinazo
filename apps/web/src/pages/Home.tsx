@@ -8,7 +8,7 @@ import { MatchCardSkeleton, SkeletonList } from "@/components/Skeleton";
 import { ErrorState } from "@/components/States";
 import { useTitle } from "@/components/PageShell";
 import { useT } from "@/context/LanguageContext";
-import { useFixtures } from "@/lib/queries";
+import { useTodayFixtures } from "@/lib/queries";
 import { EASE, gsap, MOTION_OK, useCounter, useParallax, useReveal } from "@/lib/motion";
 import { isLive } from "@/lib/api";
 
@@ -16,7 +16,8 @@ export default function Home() {
   const t = useT();
   useTitle(t("home.title"));
 
-  const { data, isPending, isError, error, refetch } = useFixtures();
+  // Today across every configured league, not one competition's whole season.
+  const { data, isPending, isError, error, refetch } = useTodayFixtures();
   const matches = data?.data.fixtures ?? [];
   const live = matches.filter(isLive);
   const ticker = live.length > 0 ? live : matches.slice(0, 12);
@@ -72,7 +73,8 @@ function FixtureList({ matches }: { matches: Parameters<typeof MatchCard>[0]["ma
     <div ref={scope} className="border-t border-ink-line">
       {matches.map((match) => (
         <div key={match.fixture.id} className="js-reveal">
-          <MatchCard match={match} />
+          {/* Ten competitions share this list, so each row says which. */}
+          <MatchCard match={match} showLeague />
         </div>
       ))}
     </div>

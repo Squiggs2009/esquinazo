@@ -370,6 +370,25 @@ export interface LeagueEntry {
 /** Premier League - the competition used when a request does not name one. */
 export const DEFAULT_LEAGUE_ID = 39;
 
+/**
+ * The competitions this site surfaces. Mirrors LEAGUES in
+ * apps/web/src/lib/api.ts and must stay in step with it: a date-scoped fetch
+ * returns every fixture on earth for that day (~1,000 of them), and this is
+ * what narrows it to the ones we actually show.
+ */
+export const CONFIGURED_LEAGUE_IDS: readonly number[] = [
+  39, // Premier League
+  40, // Championship
+  140, // La Liga
+  135, // Serie A
+  78, // Bundesliga
+  61, // Ligue 1
+  2, // Champions League
+  88, // Eredivisie
+  94, // Primeira Liga
+  262, // Liga MX
+];
+
 /* -------------------------------------------------------------------------
  * Season resolution.
  *
@@ -452,6 +471,21 @@ export async function getFixtures(params: FixturesParams = {}): Promise<Fixture[
 export async function getFixtureDetail(fixtureId: number): Promise<FixtureDetail | null> {
   const entries = await request<FixtureDetail>("/fixtures", { query: { id: fixtureId } });
   return entries[0] ?? null;
+}
+
+/**
+ * Every fixture on a given calendar date, across all competitions.
+ *
+ * Deliberately one request rather than one per league: the provider has no
+ * multi-league filter, so the alternative is ten round trips against a daily
+ * quota. The response is large (~1.1MB, ~1,000 fixtures) but arrives in well
+ * under a second, and callers are expected to narrow it - see
+ * CONFIGURED_LEAGUE_IDS - before anything is cached or returned.
+ *
+ * `date` is interpreted by the provider in UTC.
+ */
+export async function getFixturesByDate(date: string): Promise<Fixture[]> {
+  return request<Fixture>("/fixtures", { query: { date } });
 }
 
 export interface StandingsParams {

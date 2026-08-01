@@ -179,8 +179,16 @@ export function toErrorResponse(
 }
 
 export interface ResourceHandlerConfig<TParams extends CacheParams, TData> {
-  /** Cache partition name, e.g. "fixtures". */
-  resource: string;
+  /**
+   * Cache partition name, e.g. "af:fixtures". May be derived from the parsed
+   * parameters when one route serves materially different payloads and each
+   * deserves its own partition rather than sharing one keyed only by query.
+   *
+   * Typed against the base CacheParams rather than TParams on purpose: as a
+   * generic inference site it would compete with `parse` and collapse TParams
+   * to its constraint, widening every field the handler reads back out of it.
+   */
+  resource: string | ((params: CacheParams) => string);
   /** Validate and normalise the query string. Throw BadRequestError to reject. */
   parse: (event: APIGatewayProxyEventV2) => TParams;
   fetch: (params: TParams) => Promise<TData>;
@@ -204,9 +212,11 @@ export function createResourceHandler<TParams extends CacheParams, TData>(
     try {
       const params = config.parse(event);
       const ttlSeconds = config.ttlSeconds ?? undefined;
+      const resource =
+        typeof config.resource === "function" ? config.resource(params) : config.resource;
 
       const result = await withCache<TData>({
-        resource: config.resource,
+        resource,
         params,
         ...(ttlSeconds === undefined ? {} : { ttlSeconds }),
         fetch: () => config.fetch(params),
@@ -219,7 +229,7 @@ export function createResourceHandler<TParams extends CacheParams, TData>(
         {
           data: result.data,
           meta: {
-            resource: config.resource,
+            resource,
             params,
             source: result.source,
             cachedAt: result.cachedAt,

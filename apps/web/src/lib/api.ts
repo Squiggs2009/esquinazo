@@ -293,6 +293,14 @@ export const getFixtures = (query: FixturesQuery = {}) =>
   apiGet<FixturesResponse>("/fixtures", query);
 
 /**
+ * Every match on one date across all configured leagues, ordered by kick-off.
+ * The API narrows the day's worldwide fixture list server-side, so this is a
+ * short response rather than the ~1MB the provider returns.
+ */
+export const getFixturesByDate = (date: string) =>
+  apiGet<FixturesResponse>("/fixtures", { date });
+
+/**
  * One match with its events, lineups and statistics. Shares the /fixtures
  * route: upstream serves both from the same endpoint, so the API exposes the
  * detail behind a `fixture` parameter rather than a separate resource.
@@ -340,6 +348,15 @@ export const LEAGUES: LeagueOption[] = [
 ];
 
 export const DEFAULT_LEAGUE_ID = 39;
+
+/**
+ * Short code for a league id, e.g. 39 -> "PL". Returns undefined for anything
+ * not in LEAGUES so callers can omit the label rather than print a raw id -
+ * the API only serves configured leagues, so this is drift insurance, not an
+ * expected path.
+ */
+export const leagueCodeFor = (leagueId: number): string | undefined =>
+  LEAGUES.find((l) => l.id === leagueId)?.code;
 
 /**
  * Upstream short codes for a match in progress. HT/BT are breaks *within* a

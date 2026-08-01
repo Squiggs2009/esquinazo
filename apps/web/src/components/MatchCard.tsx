@@ -1,19 +1,25 @@
 import { Link } from "react-router-dom";
 import { TeamBadge } from "./Badges";
-import { isLive, type Fixture, type Team } from "@/lib/api";
+import { isLive, leagueCodeFor, type Fixture, type Team } from "@/lib/api";
 import { kickoffTime, scoreline, statusLabel } from "@/lib/format";
 
 /**
  * A fixture row rather than a boxed card: hairline separators, the scoreline
  * set in tabular figures on the right, and a live match marked by an ember bar
  * down its leading edge. Hover lifts the row and lights that edge.
+ *
+ * `showLeague` adds a competition code under the kick-off time. Off by default:
+ * on Fixtures and Standings the league is already established by the rail, so
+ * the label would just repeat it. The homepage mixes ten competitions in one
+ * list and needs it.
  */
-export function MatchCard({ match }: { match: Fixture }) {
+export function MatchCard({ match, showLeague = false }: { match: Fixture; showLeague?: boolean }) {
   const live = isLive(match);
   const { home, away } = scoreline(match);
   const played = home !== null && away !== null;
   const status = match.fixture.status.short;
   const finished = status === "FT" || status === "AET" || status === "PEN";
+  const leagueCode = showLeague ? leagueCodeFor(match.league.id) : undefined;
 
   // Dim the losing side once a result stands - the eye should find the winner
   // without reading the numbers.
@@ -47,6 +53,18 @@ export function MatchCard({ match }: { match: Fixture }) {
           ) : (
             <span className="tnum block text-sm text-ink-muted">
               {finished ? statusLabel(status) : kickoffTime(match.fixture.date)}
+            </span>
+          )}
+
+          {showLeague && leagueCode && (
+            <span
+              className="u-display mt-1.5 inline-block rounded-full border border-ink-line px-1.5
+                         py-0.5 text-[0.5625rem] leading-none text-ink-muted"
+            >
+              {/* The code is the compact visual; the full name is what gets
+                  announced, since "PPL" spelled out is not a competition. */}
+              <span aria-hidden="true">{leagueCode}</span>
+              <span className="sr-only">{match.league.name}</span>
             </span>
           )}
         </div>
