@@ -46,6 +46,10 @@ function HeadlineRundown({ articles }: { articles: NewsArticle[] }) {
         </Link>
       </div>
 
+      {/* gap-px on an ink-line background is what draws the hairline rules -
+          the "gaps" are the parent showing through, not real spacing. That
+          only reads evenly if the children fill the column, which is why the
+          minor cards flex to divide it on desktop (see MinorHeadline). */}
       <div className="js-reveal grid gap-px bg-ink-line md:grid-cols-[1.3fr_1fr]">
         <LeadHeadline article={lead} />
         {rest.length > 0 && (
@@ -93,7 +97,12 @@ function MinorHeadline({ article }: { article: NewsArticle }) {
       {...(article.url
         ? { href: article.url, target: "_blank", rel: "noopener noreferrer" }
         : {})}
-      className="group block min-w-0 bg-ink px-6 py-5 transition-colors duration-300 hover:bg-ink-raised"
+      // Desktop: share the column's height equally so the hairlines between
+      // cards are evenly spaced and no ink-line band is left under the last
+      // one. py-6 matches the lead card's padding step rather than sitting a
+      // step below it. Mobile keeps the content-height stack unchanged.
+      className="group block min-w-0 bg-ink px-6 py-5 transition-colors duration-300
+                 hover:bg-ink-raised md:flex md:flex-1 md:flex-col md:justify-center md:py-6"
     >
       <p className="u-eyebrow">
         {article.source ?? "Esquinazo"} · {articleDate(article.publishedAt)}
