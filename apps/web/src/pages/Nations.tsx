@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PlayerAvatar, TeamBadge } from "@/components/Badges";
 import { PlayerCardSkeleton, SkeletonList } from "@/components/Skeleton";
@@ -6,7 +6,7 @@ import { EmptyState, ErrorState } from "@/components/States";
 import { PageHeader, useTitle } from "@/components/PageShell";
 import { useT } from "@/context/LanguageContext";
 import { useSquad, useStandings, useTeams } from "@/lib/queries";
-import { useReveal } from "@/lib/motion";
+import { MOTION_OK, useReveal } from "@/lib/motion";
 import { isKnownPosition } from "@/lib/i18n";
 import type { SquadPlayer, TeamEntry } from "@/lib/api";
 import type { TranslationKey } from "@/lib/i18n";
@@ -69,11 +69,37 @@ export default function Nations() {
     });
   }, [nations, groupByTeam]);
 
+  /**
+   * Changes whenever the buckets themselves change, which is the moment the
+   * reveal animation has to re-arm. Teams and standings are separate requests:
+   * if teams land first the nations render as one unlabelled bucket, and the
+   * later standings response replaces every <section> with new DOM. useReveal
+   * fires once per mount, so without remounting here the replacement nodes
+   * stay at the opacity:0 that html.is-animated gives them - the page shows
+   * the grid's own background as empty grey bars.
+   */
+  const groupSignature = useMemo(
+    () => grouped.map(([label, entries]) => `${label}:${entries.length}`).join("|"),
+    [grouped],
+  );
+
   const selectedId =
     Number.isFinite(teamParam) && nations.some((n) => n.team.id === teamParam)
       ? teamParam
       : undefined;
   const selected = nations.find((n) => n.team.id === selectedId);
+
+  // Bring the squad into view on selection: it renders below a tall grid of
+  // 48 nations, so without this a click looks like it did nothing.
+  const squadRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedId === undefined) return;
+    squadRef.current?.scrollIntoView({
+      behavior: MOTION_OK ? "smooth" : "auto",
+      block: "start",
+    });
+  }, [selectedId]);
 
   return (
     <>
@@ -95,17 +121,22 @@ export default function Nations() {
         ) : (
           <>
             <NationGroups
+              key={groupSignature}
               groups={grouped}
               selectedId={selectedId}
               onSelect={(id) => setParams({ team: String(id) })}
             />
 
             {selected && (
-              <NationSquad
-                key={selected.team.id}
-                teamId={selected.team.id}
-                name={selected.team.name}
-              />
+              // scroll-mt keeps the heading clear of the fixed nav when
+              // scrollIntoView lands on it.
+              <div ref={squadRef} className="scroll-mt-[calc(var(--nav-h)+1.5rem)]">
+                <NationSquad
+                  key={selected.team.id}
+                  teamId={selected.team.id}
+                  name={selected.team.name}
+                />
+              </div>
             )}
           </>
         )}
