@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PlayerAvatar, TeamBadge } from "@/components/Badges";
 import { PlayerCardSkeleton, SkeletonList } from "@/components/Skeleton";
 import { EmptyState, ErrorState } from "@/components/States";
 import { PageHeader, useTitle } from "@/components/PageShell";
+import { PlayerModal } from "@/components/PlayerModal";
 import { useT } from "@/context/LanguageContext";
 import { useSquad, useStandings, useTeams } from "@/lib/queries";
 import { MOTION_OK, useReveal } from "@/lib/motion";
@@ -89,6 +90,8 @@ export default function Nations() {
       : undefined;
   const selected = nations.find((n) => n.team.id === selectedId);
 
+  const [selectedPlayer, setSelectedPlayer] = useState<SquadPlayer | null>(null);
+
   // Bring the squad into view on selection: it renders below a tall grid of
   // 48 nations, so without this a click looks like it did nothing.
   const squadRef = useRef<HTMLDivElement>(null);
@@ -133,14 +136,20 @@ export default function Nations() {
               <div ref={squadRef} className="scroll-mt-[calc(var(--nav-h)+1.5rem)]">
                 <NationSquad
                   key={selected.team.id}
-                  teamId={selected.team.id}
-                  name={selected.team.name}
+                  team={selected.team}
+                  onSelectPlayer={setSelectedPlayer}
                 />
               </div>
             )}
           </>
         )}
       </div>
+
+      <PlayerModal
+        player={selectedPlayer}
+        team={selected?.team ?? null}
+        onClose={() => setSelectedPlayer(null)}
+      />
     </>
   );
 }
@@ -198,15 +207,21 @@ function NationGroups({
   );
 }
 
-function NationSquad({ teamId, name }: { teamId: number; name: string }) {
+function NationSquad({
+  team,
+  onSelectPlayer,
+}: {
+  team: TeamEntry["team"];
+  onSelectPlayer: (player: SquadPlayer) => void;
+}) {
   const t = useT();
-  const { data, isPending, isError, error, refetch } = useSquad(teamId);
+  const { data, isPending, isError, error, refetch } = useSquad(team.id);
   const players = data?.data.players ?? [];
 
   return (
     <section className="mt-14 border-t border-ink-line pt-10">
       <h2 className="u-display mb-2 text-title text-ink-bright">
-        {name} — {t("nations.squad")}
+        {team.name} — {t("nations.squad")}
       </h2>
       <p className="mb-8 max-w-xl text-xs leading-relaxed text-ink-muted">
         {t("nations.clubNote")}
@@ -224,13 +239,19 @@ function NationSquad({ teamId, name }: { teamId: number; name: string }) {
           detail={t("nations.squadEmptyDetail")}
         />
       ) : (
-        <SquadGrid players={players} />
+        <SquadGrid players={players} onSelect={onSelectPlayer} />
       )}
     </section>
   );
 }
 
-function SquadGrid({ players }: { players: SquadPlayer[] }) {
+function SquadGrid({
+  players,
+  onSelect,
+}: {
+  players: SquadPlayer[];
+  onSelect: (player: SquadPlayer) => void;
+}) {
   const scope = useReveal<HTMLDivElement>({ y: 18, stagger: 0.03, duration: 0.7 });
   const t = useT();
 
@@ -240,26 +261,29 @@ function SquadGrid({ players }: { players: SquadPlayer[] }) {
       className="grid grid-cols-1 gap-px border border-ink-line bg-ink-line sm:grid-cols-2 lg:grid-cols-3"
     >
       {players.map((player) => (
-        <article
-          key={player.id}
-          className="js-reveal group flex items-center gap-3.5 bg-ink p-5 transition-colors
-                     duration-500 ease-out hover:bg-ink-raised"
-        >
-          <PlayerAvatar
-            name={player.name}
-            playerId={player.id}
-            {...(player.photo === undefined ? {} : { photo: player.photo })}
-            className="transition-transform duration-500 ease-out group-hover:scale-105"
-          />
-          <div className="min-w-0">
-            <h3 className="truncate font-semibold text-ink-bright">{player.name}</h3>
-            <p className="mt-0.5 truncate text-xs text-ink-muted">
-              {player.number ? `#${player.number} · ` : ""}
-              {player.position && isKnownPosition(player.position)
-                ? t(`position.${player.position}` as TranslationKey)
-                : (player.position ?? "—")}
-            </p>
-          </div>
+        <article key={player.id} className="js-reveal">
+          <button
+            type="button"
+            onClick={() => onSelect(player)}
+            className="group flex w-full items-center gap-3.5 bg-ink p-5 text-left transition-colors
+                       duration-500 ease-out hover:bg-ink-raised"
+          >
+            <PlayerAvatar
+              name={player.name}
+              playerId={player.id}
+              {...(player.photo === undefined ? {} : { photo: player.photo })}
+              className="transition-transform duration-500 ease-out group-hover:scale-105"
+            />
+            <div className="min-w-0">
+              <h3 className="truncate font-semibold text-ink-bright">{player.name}</h3>
+              <p className="mt-0.5 truncate text-xs text-ink-muted">
+                {player.number ? `#${player.number} · ` : ""}
+                {player.position && isKnownPosition(player.position)
+                  ? t(`position.${player.position}` as TranslationKey)
+                  : (player.position ?? "—")}
+              </p>
+            </div>
+          </button>
         </article>
       ))}
     </div>

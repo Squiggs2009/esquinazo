@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PlayerAvatar, Chip, TeamBadge } from "@/components/Badges";
 import { LeagueRail } from "@/components/LeagueRail";
+import { PlayerModal } from "@/components/PlayerModal";
 import { PositionLegend } from "@/components/PositionLegend";
 import { PlayerCardSkeleton, SkeletonList } from "@/components/Skeleton";
 import { EmptyState, ErrorState } from "@/components/States";
@@ -29,6 +30,7 @@ export default function Players() {
   const teamParam = Number(params.get("team"));
   const [search, setSearch] = useState("");
   const [competition, setCompetition] = useState(DEFAULT_LEAGUE_ID);
+  const [selectedPlayer, setSelectedPlayer] = useState<SquadPlayer | null>(null);
 
   const {
     data: teamsResponse,
@@ -172,12 +174,18 @@ export default function Players() {
                   }
                 />
               ) : (
-                <GroupedSquad key={`${teamId}-${search}`} players={filtered} />
+                <GroupedSquad
+                  key={`${teamId}-${search}`}
+                  players={filtered}
+                  onSelect={setSelectedPlayer}
+                />
               )}
             </>
           )}
         </div>
       </div>
+
+      <PlayerModal player={selectedPlayer} team={team} onClose={() => setSelectedPlayer(null)} />
     </>
   );
 }
@@ -208,7 +216,13 @@ function groupByPosition(players: SquadPlayer[]) {
   return { groups, other };
 }
 
-function GroupedSquad({ players }: { players: SquadPlayer[] }) {
+function GroupedSquad({
+  players,
+  onSelect,
+}: {
+  players: SquadPlayer[];
+  onSelect: (player: SquadPlayer) => void;
+}) {
   const scope = useReveal<HTMLDivElement>({ y: 18, stagger: 0.03, duration: 0.7 });
   const t = useT();
   const { groups, other } = groupByPosition(players);
@@ -222,50 +236,60 @@ function GroupedSquad({ players }: { players: SquadPlayer[] }) {
             {t(`position.group${position}` as TranslationKey)}
             <span className="tnum ml-1 text-ink-muted">{group.length}</span>
           </h3>
-          <PlayerGrid players={group} />
+          <PlayerGrid players={group} onSelect={onSelect} />
         </section>
       ))}
 
-      {other.length > 0 && <PlayerGrid players={other} />}
+      {other.length > 0 && <PlayerGrid players={other} onSelect={onSelect} />}
     </div>
   );
 }
 
-function PlayerGrid({ players }: { players: SquadPlayer[] }) {
+function PlayerGrid({
+  players,
+  onSelect,
+}: {
+  players: SquadPlayer[];
+  onSelect: (player: SquadPlayer) => void;
+}) {
   const t = useT();
 
   return (
     <div className="grid grid-cols-1 gap-px border border-ink-line bg-ink-line sm:grid-cols-2 lg:grid-cols-3">
       {players.map((player) => (
-        <article
-          key={player.id}
-          className="js-reveal group bg-ink p-5 transition-colors duration-500 ease-out hover:bg-ink-raised"
-        >
-          <div className="flex items-center gap-3.5">
-            <PlayerAvatar
-              name={player.name}
-              playerId={player.id}
-              {...(player.photo === undefined ? {} : { photo: player.photo })}
-              className="transition-transform duration-500 ease-out group-hover:scale-105"
-            />
-            <div className="min-w-0">
-              <h4 className="truncate font-semibold text-ink-bright">{player.name}</h4>
-              <p className="mt-0.5 truncate text-xs text-ink-muted">
-                {player.number ? `#${player.number}` : "—"}
-                {player.age ? ` · ${player.age}` : ""}
-              </p>
+        <article key={player.id} className="js-reveal">
+          <button
+            type="button"
+            onClick={() => onSelect(player)}
+            className="group block w-full bg-ink p-5 text-left transition-colors duration-500
+                       ease-out hover:bg-ink-raised"
+          >
+            <div className="flex items-center gap-3.5">
+              <PlayerAvatar
+                name={player.name}
+                playerId={player.id}
+                {...(player.photo === undefined ? {} : { photo: player.photo })}
+                className="transition-transform duration-500 ease-out group-hover:scale-105"
+              />
+              <div className="min-w-0">
+                <h4 className="truncate font-semibold text-ink-bright">{player.name}</h4>
+                <p className="mt-0.5 truncate text-xs text-ink-muted">
+                  {player.number ? `#${player.number}` : "—"}
+                  {player.age ? ` · ${player.age}` : ""}
+                </p>
+              </div>
             </div>
-          </div>
 
-          {player.position && (
-            <div className="mt-5">
-              <Chip tone="ember">
-                {isKnownPosition(player.position)
-                  ? t(`position.${player.position}` as TranslationKey)
-                  : player.position}
-              </Chip>
-            </div>
-          )}
+            {player.position && (
+              <div className="mt-5">
+                <Chip tone="ember">
+                  {isKnownPosition(player.position)
+                    ? t(`position.${player.position}` as TranslationKey)
+                    : player.position}
+                </Chip>
+              </div>
+            )}
+          </button>
         </article>
       ))}
     </div>

@@ -112,6 +112,21 @@ const en = {
   "players.unavailableDetail": "The feed has no squad list for this club yet.",
   "players.clearSearch": "Clear search",
 
+  /* Player modal */
+  "player.modal.title": "Player",
+  "player.modal.close": "Close",
+  "player.modal.team": "Team",
+  "player.modal.age": "{age} yrs",
+  "player.modal.statsTitle": "Season stats",
+  "player.modal.statsEmpty":
+    "The squad list this page uses doesn't include per-player season statistics yet.",
+  "player.stat.goals": "Goals",
+  "player.stat.assists": "Assists",
+  "player.stat.passAccuracy": "Pass accuracy",
+  "player.stat.tackles": "Tackles",
+  "player.stat.minutes": "Minutes played",
+  "player.stat.appearances": "Appearances",
+
   /* Positions - the four the provider actually reports */
   "position.Goalkeeper": "Goalkeeper",
   "position.Defender": "Defender",
@@ -358,6 +373,20 @@ const es: Record<TranslationKey, string> = {
   "players.unavailableTitle": "Plantilla no disponible",
   "players.unavailableDetail": "Todavía no hay plantilla para este club.",
   "players.clearSearch": "Limpiar búsqueda",
+
+  "player.modal.title": "Jugador",
+  "player.modal.close": "Cerrar",
+  "player.modal.team": "Equipo",
+  "player.modal.age": "{age} años",
+  "player.modal.statsTitle": "Estadísticas de la temporada",
+  "player.modal.statsEmpty":
+    "La plantilla que usa esta página todavía no incluye estadísticas individuales por temporada.",
+  "player.stat.goals": "Goles",
+  "player.stat.assists": "Asistencias",
+  "player.stat.passAccuracy": "Precisión de pase",
+  "player.stat.tackles": "Entradas",
+  "player.stat.minutes": "Minutos jugados",
+  "player.stat.appearances": "Partidos jugados",
 
   "position.Goalkeeper": "Portero",
   "position.Defender": "Defensa",
