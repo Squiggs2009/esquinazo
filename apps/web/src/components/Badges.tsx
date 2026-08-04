@@ -3,6 +3,7 @@ import { initials, teamHue, teamMark } from "@/lib/format";
 import { playerPhotoUrl, type Team } from "@/lib/api";
 
 const SIZES = {
+  xs: "h-6 w-6 text-[0.5rem]",
   sm: "h-8 w-8 text-[0.625rem]",
   md: "h-11 w-11 text-xs",
   lg: "h-16 w-16 text-base",

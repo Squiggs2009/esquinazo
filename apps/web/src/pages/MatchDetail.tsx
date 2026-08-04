@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { Chip, TeamBadge } from "@/components/Badges";
+import { PitchDiagram } from "@/components/PitchDiagram";
 import { Shimmer } from "@/components/Skeleton";
 import { EmptyState, ErrorState } from "@/components/States";
 import { useTitle } from "@/components/PageShell";
@@ -115,6 +116,8 @@ function MatchView({ match }: { match: FixtureDetail }) {
           </div>
         </div>
       </header>
+
+      <PitchDiagram lineups={lineups} events={events} homeTeamId={match.teams.home.id} />
 
       <div className="u-frame grid gap-12 pb-section pt-12 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="flex min-w-0 flex-col gap-14">
