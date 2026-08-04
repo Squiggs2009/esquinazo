@@ -8,3 +8,11 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/**
+ * Defined by the gtag.js snippet in index.html. Optional because an ad blocker
+ * can stop the loader without stopping the app.
+ */
+interface Window {
+  gtag?: (...args: unknown[]) => void;
+}

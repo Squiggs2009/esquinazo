@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import { Route, Routes } from "react-router-dom";
+import { lazy, Suspense, useEffect, useRef } from "react";
+import { Route, Routes, useLocation } from "react-router-dom";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
 import { PageTransition } from "@/components/PageShell";
@@ -31,6 +31,7 @@ export default function App() {
  */
 function Shell() {
   const t = useT();
+  usePageviews();
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -64,6 +65,28 @@ function Shell() {
       <Footer />
     </div>
   );
+}
+
+const GA_MEASUREMENT_ID = "G-7446RP1F2N";
+
+/**
+ * Reports client-side navigations to GA4. The gtag.js snippet in index.html
+ * sends the pageview for whatever URL the browser loaded, so this skips its
+ * first run - otherwise the landing route would be counted twice.
+ */
+function usePageviews() {
+  const { pathname } = useLocation();
+  // Seeded with the entry URL, which the snippet has already reported. Holding
+  // the path rather than a "first run" flag also keeps StrictMode's double
+  // effect invocation in dev from sending a duplicate.
+  const reported = useRef(pathname);
+
+  useEffect(() => {
+    if (reported.current === pathname) return;
+    reported.current = pathname;
+
+    window.gtag?.("config", GA_MEASUREMENT_ID, { page_path: pathname });
+  }, [pathname]);
 }
 
 /** Shown only while a route chunk downloads — same shimmer language as data loads. */

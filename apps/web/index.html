@@ -6,6 +6,18 @@
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#0a0a0a" />
 
+    <!-- Google Analytics 4. Loads before the app bundle so the initial pageview
+         fires even if the SPA chunk is slow; route changes are sent from App.tsx. -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-7446RP1F2N"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+      gtag("config", "G-7446RP1F2N");
+    </script>
+
     <title>Esquinazo — Football, measured</title>
     <meta
       name="description"
