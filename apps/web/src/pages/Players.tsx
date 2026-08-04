@@ -16,6 +16,16 @@ import type { SquadPlayer } from "@/lib/api";
 import type { PositionCategory, TranslationKey } from "@/lib/i18n";
 
 /**
+ * API-Football's season numbering is competition-specific rather than a
+ * shared calendar year - Liga MX's Apertura runs under a different year than
+ * a European league's current season would. The player stat modal only
+ * covers Liga MX so far (see PlayerModal's leagueId/season props), so this is
+ * the one competition this page can pass a season for.
+ */
+const LIGA_MX_LEAGUE_ID = 262;
+const LIGA_MX_SEASON = 2026;
+
+/**
  * The API exposes players a squad at a time (GET /players?team=<id>), so this
  * page is "pick a league, then a club, then search within its squad" rather
  * than a global index. The club list comes from GET /teams?league=, backed by
@@ -185,7 +195,14 @@ export default function Players() {
         </div>
       </div>
 
-      <PlayerModal player={selectedPlayer} team={team} onClose={() => setSelectedPlayer(null)} />
+      <PlayerModal
+        player={selectedPlayer}
+        team={team}
+        onClose={() => setSelectedPlayer(null)}
+        {...(competition === LIGA_MX_LEAGUE_ID
+          ? { leagueId: LIGA_MX_LEAGUE_ID, season: LIGA_MX_SEASON }
+          : {})}
+      />
     </>
   );
 }

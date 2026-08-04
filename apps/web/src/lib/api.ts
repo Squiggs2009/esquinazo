@@ -218,6 +218,57 @@ export interface SquadResponse {
   players: SquadPlayer[];
 }
 
+export interface PlayerProfile {
+  id: number;
+  name: string;
+  age?: number | null;
+  nationality?: string | null;
+  photo?: string;
+}
+
+/** One competition's worth of a player's season - see statisticsForLeague. */
+export interface PlayerSeasonStatistics {
+  team: Team;
+  league: League;
+  games?: {
+    /** Sic - API-Football's actual field name. */
+    appearences?: number | null;
+    minutes?: number | null;
+  };
+  goals?: {
+    total?: number | null;
+    assists?: number | null;
+  };
+  passes?: {
+    total?: number | null;
+    key?: number | null;
+    /** Already a percentage from the provider, e.g. "85" or "85%". */
+    accuracy?: string | number | null;
+  };
+  tackles?: {
+    total?: number | null;
+  };
+}
+
+export interface PlayerStatisticsResponse {
+  player: PlayerProfile | null;
+  statistics: PlayerSeasonStatistics[];
+}
+
+/**
+ * A player can appear in `statistics` more than once in the same season - a
+ * loan move, a cup run alongside the league campaign. Prefers the entry for
+ * the competition the caller actually cares about; falls back to the first
+ * entry rather than none, since one wrong-competition stat line beats an
+ * empty modal for a player who, say, only has cup appearances on record.
+ */
+export function statisticsForLeague(
+  statistics: PlayerSeasonStatistics[],
+  leagueId: number,
+): PlayerSeasonStatistics | undefined {
+  return statistics.find((entry) => entry.league.id === leagueId) ?? statistics[0];
+}
+
 export interface TeamEntry {
   team: Team & {
     code?: string | null;
@@ -314,6 +365,10 @@ export const getStandings = (query: { league?: number; season?: number } = {}) =
 
 /** The API exposes squads by team id: GET /players?team=<id>. */
 export const getSquad = (teamId: number) => apiGet<SquadResponse>("/players", { team: teamId });
+
+/** Season statistics for one player: GET /players/stats?id=<id>&season=<year>. */
+export const getPlayerStatistics = (playerId: number, season: number) =>
+  apiGet<PlayerStatisticsResponse>("/players/stats", { id: playerId, season });
 
 export const getTransfers = (playerId: number) =>
   apiGet<TransfersResponse>("/transfers", { player: playerId });

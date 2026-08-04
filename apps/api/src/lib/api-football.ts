@@ -552,3 +552,60 @@ export interface Transfer {
 export async function getTransfers(playerId: number): Promise<Transfer[]> {
   return request<Transfer>("/transfers", { query: { player: playerId } });
 }
+
+export interface PlayerProfile {
+  id: number;
+  name: string;
+  age?: number | null;
+  nationality?: string | null;
+  photo?: string;
+}
+
+/**
+ * One competition's worth of a player's season. A player who appeared for
+ * more than one team/competition in the same season (a loan move, a cup run)
+ * gets one of these per entry - see PlayerStatisticsEntry.
+ */
+export interface PlayerSeasonStatistics {
+  team: Team;
+  league: League;
+  games?: {
+    /** Sic - this is API-Football's actual field name, not a typo here. */
+    appearences?: number | null;
+    minutes?: number | null;
+  };
+  goals?: {
+    total?: number | null;
+    assists?: number | null;
+  };
+  passes?: {
+    total?: number | null;
+    key?: number | null;
+    /** Already a percentage from the provider, e.g. "85" or "85%". */
+    accuracy?: string | number | null;
+  };
+  tackles?: {
+    total?: number | null;
+  };
+}
+
+export interface PlayerStatisticsEntry {
+  player: PlayerProfile;
+  statistics: PlayerSeasonStatistics[];
+}
+
+/**
+ * Season statistics for one player, across every competition they featured
+ * in that season. Callers narrow `statistics` to the competition they care
+ * about (see statisticsForLeague in apps/web/src/lib/api.ts) - the provider does not
+ * offer a league filter on this endpoint, only id + season.
+ */
+export async function getPlayerStatistics(
+  playerId: number,
+  season: number,
+): Promise<PlayerStatisticsEntry | null> {
+  const entries = await request<PlayerStatisticsEntry>("/players", {
+    query: { id: playerId, season },
+  });
+  return entries[0] ?? null;
+}

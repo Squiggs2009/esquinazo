@@ -1,20 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Chip, PlayerAvatar, TeamBadge } from "@/components/Badges";
+import { Shimmer } from "@/components/Skeleton";
 import { useT } from "@/context/LanguageContext";
 import { isKnownPosition } from "@/lib/i18n";
-import type { SquadPlayer, Team } from "@/lib/api";
+import { statisticsForLeague } from "@/lib/api";
+import { usePlayerStatistics } from "@/lib/queries";
+import type { PlayerSeasonStatistics, SquadPlayer, Team } from "@/lib/api";
 import type { TranslationKey } from "@/lib/i18n";
 
-/**
- * A season stat ready to plot as a bar. Nothing currently populates these -
- * API-Football's squad list (GET /players/squads, what Players and Nations
- * both already load) carries only id/name/age/number/position/photo. Real
- * per-player stats live under a separate, season-scoped endpoint this app
- * does not call. `PlayerModal` accepts them as a normal optional prop so a
- * future caller can wire real numbers in without touching this component;
- * until one does, the stats section shows an honest "not available" message
- * instead of bars with fabricated or zeroed values.
- */
+/** A season stat plotted as a bar - see buildStatBars. */
 export interface PlayerStatBar {
   key: string;
   label: string;
@@ -26,11 +20,19 @@ export interface PlayerStatBar {
 interface PlayerModalProps {
   player: SquadPlayer | null;
   team: Team | null;
-  stats?: PlayerStatBar[];
+  /**
+   * Which competition's stats to show, and which of API-Football's own
+   * season years that competition is currently running under (Liga MX's
+   * Apertura numbering does not match a European league's). Omit both when
+   * the squad the player came from is not one this feature covers yet - the
+   * stats section then shows its "not available" state instead of fetching.
+   */
+  leagueId?: number;
+  season?: number;
   onClose: () => void;
 }
 
-export function PlayerModal({ player, team, stats = [], onClose }: PlayerModalProps) {
+export function PlayerModal({ player, team, leagueId, season, onClose }: PlayerModalProps) {
   const t = useT();
   const open = player !== null;
 
@@ -39,6 +41,17 @@ export function PlayerModal({ player, team, stats = [], onClose }: PlayerModalPr
   // sheet doesn't go blank before it finishes sliding away.
   const [shown, setShown] = useState<{ player: SquadPlayer; team: Team | null } | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Only fetch when the caller actually named a competition - leagueId alone
+  // cannot select a season, and a season without a leagueId has nothing to
+  // pick statisticsForLeague against.
+  const statsSeason = leagueId !== undefined ? season : undefined;
+  const statsQuery = usePlayerStatistics(shown?.player.id, statsSeason);
+  const statsEntry =
+    leagueId !== undefined && statsQuery.data
+      ? statisticsForLeague(statsQuery.data.data.statistics, leagueId)
+      : undefined;
+  const statBars = statsEntry ? buildStatBars(statsEntry, t) : [];
 
   useEffect(() => {
     if (player) setShown({ player, team });
@@ -158,10 +171,91 @@ export function PlayerModal({ player, team, stats = [], onClose }: PlayerModalPr
 
         <div className="px-6 py-6 sm:px-8">
           <h3 className="u-eyebrow mb-4 text-ink-muted">{t("player.modal.statsTitle")}</h3>
-          <StatBars stats={stats} emptyMessage={t("player.modal.statsEmpty")} />
+          {statsQuery.isLoading ? (
+            <StatBarsSkeleton />
+          ) : (
+            <StatBars stats={statBars} emptyMessage={t("player.modal.statsEmpty")} />
+          )}
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Maps one competition's raw statistics onto bars. Ceilings are a workload
+ * benchmark, not a record: 3,420 minutes / 38 appearances is a full
+ * European-style season played start to finish, so a Liga MX Apertura
+ * regular (a shorter competition) reads as a partially filled bar rather
+ * than a maxed-out one - which is the honest picture partway through any
+ * season, MX or otherwise.
+ */
+function buildStatBars(entry: PlayerSeasonStatistics, t: (key: TranslationKey) => string): PlayerStatBar[] {
+  const goals = entry.goals?.total ?? 0;
+  const assists = entry.goals?.assists ?? 0;
+  const tackles = entry.tackles?.total ?? 0;
+  const minutes = entry.games?.minutes ?? 0;
+  const appearances = entry.games?.appearences ?? 0;
+
+  const accuracyRaw = entry.passes?.accuracy;
+  const accuracy =
+    accuracyRaw === null || accuracyRaw === undefined
+      ? 0
+      : Number.parseFloat(String(accuracyRaw).replace("%", "")) || 0;
+
+  return [
+    { key: "goals", label: t("player.stat.goals"), display: String(goals), value: goals, max: 20 },
+    {
+      key: "assists",
+      label: t("player.stat.assists"),
+      display: String(assists),
+      value: assists,
+      max: 15,
+    },
+    {
+      key: "passAccuracy",
+      label: t("player.stat.passAccuracy"),
+      display: `${Math.round(accuracy)}%`,
+      value: accuracy,
+      max: 100,
+    },
+    {
+      key: "tackles",
+      label: t("player.stat.tackles"),
+      display: String(tackles),
+      value: tackles,
+      max: 100,
+    },
+    {
+      key: "minutes",
+      label: t("player.stat.minutes"),
+      display: minutes.toLocaleString(),
+      value: minutes,
+      max: 3420,
+    },
+    {
+      key: "appearances",
+      label: t("player.stat.appearances"),
+      display: String(appearances),
+      value: appearances,
+      max: 38,
+    },
+  ];
+}
+
+function StatBarsSkeleton() {
+  return (
+    <div className="flex flex-col gap-4" aria-hidden="true">
+      {Array.from({ length: 6 }, (_, index) => (
+        <div key={index}>
+          <div className="mb-1.5 flex items-baseline justify-between gap-3">
+            <Shimmer className="h-3 w-24" />
+            <Shimmer className="h-3 w-6" />
+          </div>
+          <Shimmer className="h-1.5 w-full" />
+        </div>
+      ))}
+    </div>
   );
 }
 

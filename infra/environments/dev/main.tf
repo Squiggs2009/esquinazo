@@ -5,8 +5,8 @@
 #
 #   s3-cloudfront -> React bundle on a private bucket behind CloudFront
 #   dynamodb      -> TTL cache for upstream football data
-#   lambda        -> fixtures / standings / players / transfers / teams / news / refresh
-#   api-gateway   -> HTTP API routing /fixtures, /standings, /players, /transfers, /teams, /news
+#   lambda        -> fixtures / standings / players / player-stats / transfers / teams / news / refresh
+#   api-gateway   -> HTTP API routing /fixtures, /standings, /players, /players/stats, /transfers, /teams, /news
 #   eventbridge   -> 5-minute schedule invoking the refresh function
 #   route53       -> DNS, skipped entirely while domain_name is "localhost"
 #
@@ -75,6 +75,15 @@ locals {
     }
   }
 
+  # Also kept out of api_functions/api_function_names: its route is
+  # "/players/stats", not "/${name}", so it needs a route entry of its own
+  # below rather than one generated from the function name.
+  player_stats_function = {
+    "player-stats" = {
+      source_dir = "${local.lambda_source_root}/player-stats"
+    }
+  }
+
   cors_allow_origins = local.use_custom_domain ? [
     "https://${var.domain_name}",
     "https://www.${var.domain_name}",
@@ -131,7 +140,12 @@ module "functions" {
 
   environment = var.environment
 
-  functions = merge(local.api_functions, local.news_function, local.refresh_function)
+  functions = merge(
+    local.api_functions,
+    local.news_function,
+    local.player_stats_function,
+    local.refresh_function,
+  )
 
   default_memory_size  = 128
   default_architecture = "arm64"
@@ -171,6 +185,13 @@ module "api" {
       "/news" = {
         lambda_function_name = module.functions.function_names["news"]
         lambda_invoke_arn    = module.functions.invoke_arns["news"]
+        methods              = ["GET"]
+      }
+    },
+    {
+      "/players/stats" = {
+        lambda_function_name = module.functions.function_names["player-stats"]
+        lambda_invoke_arn    = module.functions.invoke_arns["player-stats"]
         methods              = ["GET"]
       }
     },

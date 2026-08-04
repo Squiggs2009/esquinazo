@@ -5,6 +5,7 @@ import {
   getFixtures,
   getFixturesByDate,
   getNews,
+  getPlayerStatistics,
   getSquad,
   getStandings,
   getTeams,
@@ -109,6 +110,23 @@ export function useSquad(teamId: number | undefined) {
     queryKey: ["squad", teamId],
     queryFn: () => getSquad(teamId as number),
     enabled: typeof teamId === "number",
+    staleTime: 60 * MINUTE,
+    retry: retryPolicy,
+  });
+}
+
+/**
+ * Season statistics for one player. `season` is left to the caller rather
+ * than defaulted here: unlike squads and standings, which resolve their own
+ * current season server-side, this endpoint's season is competition-specific
+ * (Liga MX's Apertura numbering does not match a European league's), so
+ * there is no single "current" value this hook could assume.
+ */
+export function usePlayerStatistics(playerId: number | undefined, season: number | undefined) {
+  return useQuery({
+    queryKey: ["player-statistics", playerId, season],
+    queryFn: () => getPlayerStatistics(playerId as number, season as number),
+    enabled: typeof playerId === "number" && typeof season === "number",
     staleTime: 60 * MINUTE,
     retry: retryPolicy,
   });
