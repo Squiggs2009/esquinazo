@@ -62,6 +62,7 @@ export interface Headline {
   publishedAt: string;
   source?: string;
   url?: string;
+  imageUrl?: string;
 }
 
 export interface TopHeadlinesParams {
@@ -121,5 +122,6 @@ export async function getTopHeadlines(params: TopHeadlinesParams = {}): Promise<
       publishedAt: article.publishedAt,
       source: article.source?.name ?? undefined,
       url: article.url ?? undefined,
+      imageUrl: article.urlToImage ?? undefined,
     }));
 }

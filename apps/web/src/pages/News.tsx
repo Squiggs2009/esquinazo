@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ArticleCardSkeleton, SkeletonList } from "@/components/Skeleton";
 import { EmptyState, ErrorState } from "@/components/States";
 import { PageHeader, useTitle } from "@/components/PageShell";
@@ -87,15 +88,7 @@ function ArticleCard({ article, featured = false }: { article: NewsArticle; feat
                     hover:-translate-y-1 hover:border-ember/40 hover:shadow-ember
                     ${featured ? "sm:grid sm:grid-cols-2" : ""}`}
       >
-        {/* Placeholder art: an angled ember wash, not a grey box. */}
-        <div
-          className={`relative overflow-hidden bg-ink-raised ${featured ? "aspect-[16/10] sm:aspect-auto" : "aspect-[16/10]"}`}
-          aria-hidden="true"
-        >
-          <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(204,85,0,0.22),transparent_55%)]" />
-          <div className="absolute inset-0 bg-stands opacity-60" />
-          <span className="u-display absolute bottom-4 left-4 text-4xl text-ink-line">E</span>
-        </div>
+        <ArticleMedia article={article} featured={featured} />
 
         <div className={`flex flex-col p-5 ${featured ? "justify-center sm:p-9" : ""}`}>
           <p className="u-eyebrow text-ember">
@@ -117,5 +110,38 @@ function ArticleCard({ article, featured = false }: { article: NewsArticle; feat
         </div>
       </Wrapper>
     </article>
+  );
+}
+
+/**
+ * NewsAPI's `urlToImage` is frequently null and occasionally a dead link, so
+ * the branded wash is the fallback for both cases - not a broken-image icon -
+ * following the same onError-swap pattern PlayerAvatar and TeamBadge use.
+ */
+function ArticleMedia({ article, featured }: { article: NewsArticle; featured: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const showPhoto = Boolean(article.imageUrl) && !failed;
+
+  return (
+    <div
+      className={`relative overflow-hidden bg-ink-raised ${featured ? "aspect-[16/10] sm:aspect-auto" : "aspect-[16/10]"}`}
+      aria-hidden="true"
+    >
+      {showPhoto ? (
+        <img
+          src={article.imageUrl}
+          alt=""
+          loading="lazy"
+          onError={() => setFailed(true)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <>
+          <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(204,85,0,0.22),transparent_55%)]" />
+          <div className="absolute inset-0 bg-stands opacity-60" />
+          <span className="u-display absolute bottom-4 left-4 text-4xl text-ink-line">E</span>
+        </>
+      )}
+    </div>
   );
 }

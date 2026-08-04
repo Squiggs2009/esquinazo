@@ -30,6 +30,7 @@ interface ResponseArticle {
   publishedAt: string;
   source?: string;
   url?: string;
+  imageUrl?: string;
 }
 
 /** Adds the `id` the frontend's NewsArticle type requires - a caching/upstream concern neither layer below owns. */

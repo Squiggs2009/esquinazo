@@ -254,6 +254,7 @@ export interface NewsArticle {
   publishedAt: string;
   source?: string;
   url?: string;
+  imageUrl?: string;
 }
 
 export interface NewsResponse {
