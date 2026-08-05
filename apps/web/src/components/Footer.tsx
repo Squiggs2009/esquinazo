@@ -38,7 +38,7 @@ export function Footer() {
       <div className="u-frame py-14">
         <div className="grid gap-12 md:grid-cols-[1.4fr_repeat(2,minmax(0,0.7fr))_1.2fr]">
           <div>
-            <Monogram className="h-9 w-9" />
+            <Monogram className="h-12 w-12" />
             <p className="mt-5 max-w-xs text-sm leading-relaxed text-ink-muted">
               {t("footer.blurb")}
             </p>
