@@ -14,6 +14,8 @@ import type { TranslationKey } from "@/lib/i18n";
 
 /** API-Football's competition id for the World Cup. */
 const WORLD_CUP_LEAGUE_ID = 1;
+/** The season the player stat modal requests stats under - see PlayerModal. */
+const WORLD_CUP_SEASON = 2026;
 
 /**
  * The 2026 World Cup field. Teams come from the tournament's own competition
@@ -148,6 +150,8 @@ export default function Nations() {
       <PlayerModal
         player={selectedPlayer}
         team={selected?.team ?? null}
+        leagueId={WORLD_CUP_LEAGUE_ID}
+        season={WORLD_CUP_SEASON}
         onClose={() => setSelectedPlayer(null)}
       />
     </>
