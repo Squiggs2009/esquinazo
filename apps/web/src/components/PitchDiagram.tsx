@@ -1,6 +1,8 @@
-import { useMemo } from "react";
-import { PlayerAvatar, TeamBadge } from "@/components/Badges";
+import { useMemo, useState } from "react";
+import { TeamBadge } from "@/components/Badges";
 import { useT } from "@/context/LanguageContext";
+import { initials } from "@/lib/format";
+import { playerPhotoUrl } from "@/lib/api";
 import type { Lineup, LineupPlayer, MatchEvent } from "@/lib/api";
 import type { TranslationKey } from "@/lib/i18n";
 
@@ -28,12 +30,37 @@ const POSITION_LABEL_KEYS: Record<string, TranslationKey> = {
   F: "position.Attacker",
 };
 
-/** 5-point star, centered at the origin, for the goal-scorer badge. */
-const STAR_POINTS = Array.from({ length: 10 }, (_, i) => {
-  const angle = (Math.PI / 5) * i - Math.PI / 2;
-  const r = i % 2 === 0 ? 6 : 2.6;
-  return `${(r * Math.cos(angle)).toFixed(2)},${(r * Math.sin(angle)).toFixed(2)}`;
-}).join(" ");
+/** Five points around the origin - shared by the ball's pentagon and its seams. */
+const BALL_ANGLES = Array.from({ length: 5 }, (_, i) => ((2 * Math.PI) / 5) * i - Math.PI / 2);
+
+const BALL_PENTAGON = BALL_ANGLES.map(
+  (a) => `${(2.4 * Math.cos(a)).toFixed(2)},${(2.4 * Math.sin(a)).toFixed(2)}`,
+).join(" ");
+
+/**
+ * A minimal ball for the goal-scorer badge: a plain white body, a centre
+ * pentagon and five short seams - the classic hex/pentagon panel pattern
+ * reduced to what still reads at 16px rather than reproduced in full.
+ */
+function BallIcon() {
+  return (
+    <g aria-hidden="true">
+      <circle r={5} fill="#f5f5f5" />
+      {BALL_ANGLES.map((a, i) => (
+        <line
+          key={i}
+          x1={2.4 * Math.cos(a)}
+          y1={2.4 * Math.sin(a)}
+          x2={4.6 * Math.cos(a)}
+          y2={4.6 * Math.sin(a)}
+          stroke="#0a0a0a"
+          strokeWidth={0.6}
+        />
+      ))}
+      <polygon points={BALL_PENTAGON} fill="#0a0a0a" />
+    </g>
+  );
+}
 
 interface PositionedPlayer {
   entry: LineupPlayer;
@@ -264,8 +291,73 @@ function PitchField() {
   );
 }
 
-const DOT_W = 76;
-const DOT_H = 90;
+const AVATAR_R = 12;
+/** Shared corner offset for every badge clustered around the avatar ring. */
+const BADGE_OFFSET = AVATAR_R * 0.75;
+
+/** Crude but renderer-agnostic: SVG text has no CSS text-overflow to lean on. */
+function shortenName(name: string, max = 11): string {
+  return name.length > max ? `${name.slice(0, max - 1)}…` : name;
+}
+
+/**
+ * Headshot with an initials fallback, drawn as plain SVG (image/circle/text)
+ * rather than the foreignObject+HTML this used originally. foreignObject
+ * turned out to not render at all in iOS Safari - every browser there is
+ * WebKit under Apple's rules, so it wasn't just one browser to work around -
+ * while the sibling badges below, which are already plain SVG, rendered
+ * fine. Native SVG primitives sidestep the whole compatibility question.
+ */
+function PlayerAvatarMark({
+  playerId,
+  name,
+  accentColor,
+}: {
+  playerId: number;
+  name: string;
+  accentColor: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const clipId = `pitch-avatar-${playerId}`;
+
+  return (
+    <>
+      <defs>
+        <clipPath id={clipId}>
+          <circle r={AVATAR_R} />
+        </clipPath>
+      </defs>
+
+      <circle r={AVATAR_R + 2} fill="#0a0a0a" stroke={accentColor} strokeWidth={2} />
+
+      {failed ? (
+        <>
+          <circle r={AVATAR_R} fill="#141414" />
+          <text
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={9}
+            fontWeight={700}
+            fill="#cc5500"
+          >
+            {initials(name)}
+          </text>
+        </>
+      ) : (
+        <image
+          href={playerPhotoUrl(playerId)}
+          x={-AVATAR_R}
+          y={-AVATAR_R}
+          width={AVATAR_R * 2}
+          height={AVATAR_R * 2}
+          clipPath={`url(#${clipId})`}
+          preserveAspectRatio="xMidYMid slice"
+          onError={() => setFailed(true)}
+        />
+      )}
+    </>
+  );
+}
 
 function PlayerDot({
   player,
@@ -286,44 +378,61 @@ function PlayerDot({
 
   return (
     <g transform={`translate(${x} ${y})`} opacity={dimmed ? 0.45 : 1}>
-      <foreignObject x={-DOT_W / 2} y={-DOT_H / 2} width={DOT_W} height={DOT_H}>
-        <div
-          {...{ xmlns: "http://www.w3.org/1999/xhtml" }}
-          title={tooltip}
-          className="flex h-full flex-col items-center gap-1 pt-1"
+      <title>{tooltip}</title>
+
+      <PlayerAvatarMark playerId={entry.player.id} name={entry.player.name} accentColor={accentColor} />
+
+      {/* Number, cards, goals and subs all cluster in the four corners of the
+          avatar ring rather than out at the edges of the old name-label box -
+          they read as one badge group instead of scattered icons. */}
+      <g transform={`translate(${BADGE_OFFSET},${BADGE_OFFSET})`}>
+        <circle r={6.5} fill="#0a0a0a" stroke={accentColor} strokeWidth={1.5} />
+        <text
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={7}
+          fontWeight={700}
+          fill="#f5f5f5"
+          className="tnum"
         >
-          <div className="relative shrink-0 rounded-full" style={{ boxShadow: `0 0 0 2px ${accentColor}` }}>
-            <PlayerAvatar name={entry.player.name} playerId={entry.player.id} size="xs" />
+          {entry.player.number ?? ""}
+        </text>
+      </g>
 
-            <span
-              className="tnum absolute -bottom-1 -right-1 grid h-3.5 w-3.5 place-items-center rounded-full
-                         bg-ink text-[0.5rem] font-bold leading-none text-ink-bright"
-              style={{ boxShadow: `0 0 0 1.5px ${accentColor}` }}
-            >
-              {entry.player.number ?? ""}
-            </span>
+      {badges?.red ? (
+        <rect x={BADGE_OFFSET - 3.5} y={-BADGE_OFFSET - 5} width={7} height={10} rx={1} fill="#8b0000" />
+      ) : badges?.yellow ? (
+        <rect x={BADGE_OFFSET - 3.5} y={-BADGE_OFFSET - 5} width={7} height={10} rx={1} fill="#facc15" />
+      ) : null}
 
-            {badges?.red ? (
-              <span className="absolute -right-1 -top-1 h-2.5 w-[0.4375rem] rounded-[1px] bg-blood" />
-            ) : badges?.yellow ? (
-              <span className="absolute -right-1 -top-1 h-2.5 w-[0.4375rem] rounded-[1px] bg-yellow-400" />
-            ) : null}
-          </div>
-
-          {/* Full name on hover/tap via the native title above; the label
-              itself is desktop-only so 22 of them never collide on mobile. */}
-          <span className="hidden w-full truncate text-center text-[0.5rem] font-semibold leading-tight text-ink-bright sm:block">
-            {entry.player.name}
-          </span>
-        </div>
-      </foreignObject>
+      {/* Full name on hover/tap via the <title> above; the label itself is
+          desktop-only so 22 of them never collide on mobile. */}
+      <text
+        y={AVATAR_R + 14}
+        textAnchor="middle"
+        fontSize={9}
+        fontWeight={600}
+        fill="#f5f5f5"
+        className="hidden sm:block"
+      >
+        {shortenName(entry.player.name)}
+      </text>
 
       {badges && badges.goals > 0 ? (
-        <g transform={`translate(${-DOT_W / 2 + 8},${-DOT_H / 2 + 8})`}>
-          <circle r={8} fill="#0a0a0a" stroke="#ff6f14" strokeWidth={1.5} />
-          <polygon points={STAR_POINTS} fill="#ff6f14" />
+        <g transform={`translate(${-BADGE_OFFSET},${-BADGE_OFFSET})`}>
+          <circle r={7} fill="#0a0a0a" stroke="#ff6f14" strokeWidth={1.3} />
+          <BallIcon />
           {badges.goals > 1 && (
-            <text x={13} y={3} fontSize={9} fontWeight={700} fill="#f5f5f5" className="tnum">
+            <text
+              x={-9}
+              y={-1}
+              textAnchor="end"
+              dominantBaseline="central"
+              fontSize={7}
+              fontWeight={700}
+              fill="#f5f5f5"
+              className="tnum"
+            >
               ×{badges.goals}
             </text>
           )}
@@ -331,12 +440,12 @@ function PlayerDot({
       ) : null}
 
       {badges?.subOff ? (
-        <g transform={`translate(${DOT_W / 2 - 8},${-DOT_H / 2 + 8})`}>
-          <circle r={7} fill="#0a0a0a" stroke="#34d399" strokeWidth={1.3} />
+        <g transform={`translate(${-BADGE_OFFSET},${BADGE_OFFSET})`}>
+          <circle r={6.5} fill="#0a0a0a" stroke="#34d399" strokeWidth={1.2} />
           <path
-            d="M-3 -1.5h5l-1.6-1.6M3 1.5h-5l1.6 1.6"
+            d="M-2.6 -1.3h4.4l-1.4-1.4M2.6 1.3h-4.4l1.4 1.4"
             stroke="#34d399"
-            strokeWidth={1.2}
+            strokeWidth={1.1}
             fill="none"
             strokeLinecap="round"
             strokeLinejoin="round"
