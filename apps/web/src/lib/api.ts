@@ -401,6 +401,8 @@ export const LEAGUES: LeagueOption[] = [
   { id: 88, code: "DED", name: "Eredivisie", country: "Netherlands" },
   { id: 94, code: "PPL", name: "Primeira Liga", country: "Portugal" },
   { id: 262, code: "MX", name: "Liga MX", country: "Mexico" },
+  { id: 253, code: "MLS", name: "MLS", country: "United States" },
+  { id: 772, code: "LCUP", name: "Leagues Cup", country: "North America" },
 ];
 
 export const DEFAULT_LEAGUE_ID = 39;

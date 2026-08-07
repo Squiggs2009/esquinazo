@@ -387,6 +387,8 @@ export const CONFIGURED_LEAGUE_IDS: readonly number[] = [
   88, // Eredivisie
   94, // Primeira Liga
   262, // Liga MX
+  253, // MLS
+  772, // Leagues Cup
 ];
 
 /* -------------------------------------------------------------------------
