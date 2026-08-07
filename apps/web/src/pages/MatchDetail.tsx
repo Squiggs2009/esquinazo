@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { Chip, TeamBadge } from "@/components/Badges";
+import { Chip, PlayerAvatar, TeamBadge } from "@/components/Badges";
 import { PitchDiagram } from "@/components/PitchDiagram";
 import { Shimmer } from "@/components/Skeleton";
 import { EmptyState, ErrorState } from "@/components/States";
@@ -121,7 +121,11 @@ function MatchView({ match }: { match: FixtureDetail }) {
 
       <div className="u-frame grid gap-12 pb-section pt-12 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="flex min-w-0 flex-col gap-14">
-          <Timeline events={events} homeTeamId={match.teams.home.id} />
+          <Timeline
+            events={events}
+            homeTeamId={match.teams.home.id}
+            halftimeScore={match.score?.halftime}
+          />
           <Statistics statistics={statistics} />
           <Lineups lineups={lineups} />
         </div>
@@ -198,14 +202,14 @@ function EventMarker({ event }: { event: MatchEvent }) {
     return (
       <span
         aria-hidden="true"
-        className={`block h-3.5 w-2.5 rounded-[1px] ${red ? "bg-blood" : "bg-yellow-400"}`}
+        className={`block h-3.5 w-2.5 shrink-0 rounded-[1px] ${red ? "bg-blood" : "bg-yellow-400"}`}
       />
     );
   }
 
   if (event.type === "subst") {
     return (
-      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true">
+      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden="true">
         <path
           d="M4 5h7l-2-2m3 6H5l2 2"
           fill="none"
@@ -218,23 +222,73 @@ function EventMarker({ event }: { event: MatchEvent }) {
     );
   }
 
-  // Goal (and VAR, which usually resolves one) - a filled disc, the loudest
-  // marker in the set because it is the only one that changes the score.
+  // Goal (and VAR, which usually resolves one) - a target ring, the loudest
+  // marker in the set because it is the only one that changes the score. A
+  // missed penalty gets the ring without the filled centre.
   const missed = detail.includes("missed");
   return (
-    <span
-      aria-hidden="true"
-      className={`block h-3 w-3 rounded-full ${missed ? "bg-ink-muted" : "bg-ember"}`}
-    />
+    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0" aria-hidden="true">
+      <circle
+        cx="8"
+        cy="8"
+        r="6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        className={missed ? "text-ink-muted" : "text-ember"}
+      />
+      {!missed && <circle cx="8" cy="8" r="2.25" className="fill-ember" />}
+    </svg>
   );
 }
 
-function Timeline({ events, homeTeamId }: { events: MatchEvent[]; homeTeamId: number }) {
+/**
+ * Running scoreline at the moment of each goal. `event.team` already names
+ * the side the goal counts for even for own goals - verified against a real
+ * fixture (Toluca 3-1 Necaxa, Liga MX): the own-goal scorer played for
+ * Necaxa, but the event's `team` named Toluca, the side it benefited. So the
+ * same team-id check every other event on this page uses is enough; no
+ * separate own-goal attribution is needed.
+ */
+function withRunningScore(
+  ordered: MatchEvent[],
+  homeTeamId: number,
+): Array<{ event: MatchEvent; score?: readonly [number, number] }> {
+  let home = 0;
+  let away = 0;
+
+  return ordered.map((event) => {
+    const detail = (event.detail ?? "").toLowerCase();
+    if (event.type !== "Goal" || detail.includes("missed")) {
+      return { event };
+    }
+    if (event.team.id === homeTeamId) home += 1;
+    else away += 1;
+    return { event, score: [home, away] as const };
+  });
+}
+
+function Timeline({
+  events,
+  homeTeamId,
+  halftimeScore,
+}: {
+  events: MatchEvent[];
+  homeTeamId: number;
+  halftimeScore?: { home: number | null; away: number | null };
+}) {
   const t = useT();
 
   const ordered = [...events].sort(
     (a, b) => (a.time.elapsed ?? 0) - (b.time.elapsed ?? 0) || (a.time.extra ?? 0) - (b.time.extra ?? 0),
   );
+  const withScores = withRunningScore(ordered, homeTeamId);
+
+  // Second-half events start at 46' - only worth a divider if the list
+  // actually has events on both sides of it.
+  const halftimeIndex = withScores.findIndex((item) => (item.event.time.elapsed ?? 0) >= 46);
+  const showHalftime =
+    halftimeScore?.home !== null && halftimeScore?.home !== undefined && halftimeIndex > 0;
 
   return (
     <section className="js-reveal">
@@ -245,59 +299,122 @@ function Timeline({ events, homeTeamId }: { events: MatchEvent[]; homeTeamId: nu
           {t("match.timelineEmpty")}
         </p>
       ) : (
-        <ol className="relative flex flex-col gap-5 border-l border-ink-line pl-6 sm:pl-7">
-          {ordered.map((event, index) => {
-            const home = event.team.id === homeTeamId;
-            const isSub = event.type === "subst";
-
-            return (
-              <li key={`${event.time.elapsed}-${event.player?.id ?? index}-${index}`} className="relative">
-                <span
-                  className="absolute -left-[1.9rem] top-1 grid h-4 w-4 place-items-center sm:-left-[2.15rem]"
-                >
-                  <EventMarker event={event} />
-                </span>
-
-                <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-                  <span className="tnum u-display text-sm text-ember-bright">
-                    {event.time.elapsed ?? 0}
-                    {event.time.extra ? `+${event.time.extra}` : ""}&apos;
-                  </span>
-                  <span className="u-eyebrow text-[0.625rem] text-ink-muted">
-                    {t(eventLabelKey(event))}
-                  </span>
-                  {/* Which side it belongs to, without a second timeline column. */}
-                  <span className="u-eyebrow text-[0.625rem] text-ink-muted/70">
-                    {home ? "H" : "A"}
-                  </span>
-                </div>
-
-                <p className="mt-1 text-sm font-semibold text-ink-bright">
-                  {/* For substitutions the provider puts the player coming OFF
-                      in `player` and the one coming ON in `assist` - verified
-                      against the starting XI, not assumed from the field names. */}
-                  {isSub ? (event.assist?.name ?? "—") : (event.player?.name ?? "—")}
-                </p>
-
-                {isSub ? (
-                  event.player?.name && (
-                    <p className="mt-0.5 text-xs text-ink-muted">
-                      {t("event.subOut")}: {event.player.name}
-                    </p>
-                  )
-                ) : (
-                  event.assist?.name && (
-                    <p className="mt-0.5 text-xs text-ink-muted">
-                      {t("event.assist", { name: event.assist.name })}
-                    </p>
-                  )
-                )}
+        <div className="relative">
+          {/* One continuous line behind every row, rather than a border per
+              row, so it reads as a single timeline rather than a list. */}
+          <div
+            className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-ink-line"
+            aria-hidden="true"
+          />
+          {/* z-10, not just relative: an absolutely positioned sibling paints
+              above static-flow content by default regardless of DOM order,
+              so without an explicit stacking order the line above would
+              cover the rows instead of running behind their bg-ink patches. */}
+          <ol className="relative z-10 flex flex-col">
+            {withScores.map((item, index) => (
+              <li key={`${item.event.time.elapsed}-${item.event.player?.id ?? index}-${index}`}>
+                {showHalftime && index === halftimeIndex && <HalftimeDivider score={halftimeScore} />}
+                <TimelineRow item={item} homeTeamId={homeTeamId} />
               </li>
-            );
-          })}
-        </ol>
+            ))}
+          </ol>
+        </div>
       )}
     </section>
+  );
+}
+
+function HalftimeDivider({ score }: { score?: { home: number | null; away: number | null } }) {
+  const t = useT();
+  return (
+    <div className="flex items-center gap-4 bg-ink py-3">
+      <span className="h-px flex-1 bg-ink-line" aria-hidden="true" />
+      <span className="u-eyebrow tnum shrink-0 text-ink-muted">
+        {t("match.halfTime")} · {score?.home ?? 0}–{score?.away ?? 0}
+      </span>
+      <span className="h-px flex-1 bg-ink-line" aria-hidden="true" />
+    </div>
+  );
+}
+
+function TimelineRow({
+  item,
+  homeTeamId,
+}: {
+  item: { event: MatchEvent; score?: readonly [number, number] };
+  homeTeamId: number;
+}) {
+  const t = useT();
+  const { event, score } = item;
+  const home = event.team.id === homeTeamId;
+  const isSub = event.type === "subst";
+
+  // For substitutions the provider puts the player coming OFF in `player`
+  // and the one coming ON in `assist` - verified against the starting XI.
+  const leadName = (isSub ? event.assist?.name : event.player?.name) ?? "—";
+  const leadId = (isSub ? event.assist?.id : event.player?.id) ?? undefined;
+  const minute = `${event.time.elapsed ?? 0}${event.time.extra ? `+${event.time.extra}` : ""}'`;
+
+  const avatar = <PlayerAvatar name={leadName} playerId={leadId} size="sm" className="shrink-0" />;
+
+  const textBlock = (
+    <div className={`min-w-0 ${home ? "text-right" : "text-left"}`}>
+      <p
+        className={`truncate text-sm font-semibold ${isSub ? "text-emerald-400" : "text-ink-bright"}`}
+      >
+        {leadName}
+        {score && (
+          <span className="tnum ml-1.5 font-normal text-ember-bright">
+            ({score[0]}-{score[1]})
+          </span>
+        )}
+      </p>
+      {isSub ? (
+        event.player?.name && (
+          <p className="truncate text-xs text-ink-muted">
+            {t("event.subOut")}: {event.player.name}
+          </p>
+        )
+      ) : (
+        event.assist?.name && (
+          <p className="truncate text-xs text-ink-muted">
+            {t("event.assist", { name: event.assist.name })}
+          </p>
+        )
+      )}
+    </div>
+  );
+
+  // Home hugs the centre line from the left (avatar outermost); away hugs it
+  // from the right (avatar outermost on the other side) - not a mirrored
+  // flex-reverse of the same markup, since which element is "outermost"
+  // flips with the side.
+  const content = (
+    <div className={`flex min-w-0 items-center gap-3 ${home ? "justify-end" : "justify-start"}`}>
+      {home ? (
+        <>
+          {avatar}
+          {textBlock}
+        </>
+      ) : (
+        <>
+          {textBlock}
+          {avatar}
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 py-2.5 sm:gap-4">
+      <div className="min-w-0">{home ? content : null}</div>
+      <div className="flex items-center gap-1.5 bg-ink px-0.5">
+        <EventMarker event={event} />
+        <span className="tnum text-xs text-ink-muted">{minute}</span>
+        <span className="sr-only">{t(eventLabelKey(event))}</span>
+      </div>
+      <div className="min-w-0">{!home ? content : null}</div>
+    </div>
   );
 }
 
