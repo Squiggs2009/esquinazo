@@ -43,6 +43,30 @@ variable "news_api_key" {
   sensitive   = true
 }
 
+variable "sanity_webhook_secret" {
+  description = "Signing secret from the Sanity webhook, injected only into the generate-wire-page Lambda. Used to verify the sanity-webhook-signature header."
+  type        = string
+  sensitive   = true
+}
+
+variable "sanity_project_id" {
+  description = "Sanity project id backing the Wire."
+  type        = string
+  default     = "jqhhqpia"
+}
+
+variable "sanity_dataset" {
+  description = "Sanity dataset. Public on purpose - the Wire has to be crawlable - so no read token is needed."
+  type        = string
+  default     = "production"
+}
+
+variable "sanity_api_version" {
+  description = "Sanity API version date used by the Wire queries."
+  type        = string
+  default     = "2024-01-01"
+}
+
 variable "tags" {
   description = "Additional tags merged over the default Project/Environment tags."
   type        = map(string)

@@ -18,6 +18,7 @@ const FUNCTIONS = [
   "refresh",
   "news",
   "teams",
+  "generate-wire-page",
 ];
 
 await rm("dist", { recursive: true, force: true });

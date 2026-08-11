@@ -157,6 +157,19 @@ const en = {
   "news.emptyDetail":
     "No stories have come through the feed today. Try the fixtures page for what is actually happening.",
 
+  /* The Wire archive. /news itself is pre-rendered and carries its own copy. */
+  "wire.archiveEyebrow": "The Wire",
+  "wire.archiveTitle": "Archive",
+  "wire.archiveLede": "Everything older than the front page, newest first.",
+  "wire.backToWire": "← The Wire",
+  "wire.loadMore": "Load more",
+  "wire.loading": "Loading…",
+  "wire.news": "News",
+  "wire.opinion": "Opinion",
+  "wire.emptyTitle": "Nothing in the archive",
+  "wire.emptyDetail":
+    "Everything published so far already fits on the front page. Check back once there is more behind it.",
+
   /* Match detail */
   "match.title": "Match",
   "match.backToFixtures": "← Fixtures",
@@ -418,6 +431,18 @@ const es: Record<TranslationKey, string> = {
   "news.emptyTitle": "Nada publicado",
   "news.emptyDetail":
     "Hoy no han llegado noticias. Prueba la página de partidos para ver lo que está pasando.",
+
+  "wire.archiveEyebrow": "The Wire",
+  "wire.archiveTitle": "Archivo",
+  "wire.archiveLede": "Todo lo anterior a la portada, de lo más reciente a lo más antiguo.",
+  "wire.backToWire": "← The Wire",
+  "wire.loadMore": "Cargar más",
+  "wire.loading": "Cargando…",
+  "wire.news": "Noticias",
+  "wire.opinion": "Opinión",
+  "wire.emptyTitle": "Nada en el archivo",
+  "wire.emptyDetail":
+    "Todo lo publicado hasta ahora cabe en la portada. Vuelve cuando haya más detrás.",
 
   "match.title": "Partido",
   "match.backToFixtures": "← Partidos",

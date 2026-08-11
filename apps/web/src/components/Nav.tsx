@@ -6,13 +6,19 @@ import { useT } from "@/context/LanguageContext";
 import { KOFI_URL } from "@/lib/links";
 import type { TranslationKey } from "@/lib/i18n";
 
-const LINKS: Array<{ to: string; label: TranslationKey; end?: boolean }> = [
+/**
+ * `external` forces a real navigation instead of a client-side one. /news is a
+ * static page written to S3, so a react-router <Link> would render the SPA's
+ * archive route and the pre-rendered Wire would never be seen by anyone
+ * browsing the site.
+ */
+const LINKS: Array<{ to: string; label: TranslationKey; end?: boolean; external?: boolean }> = [
   { to: "/", label: "nav.home", end: true },
   { to: "/fixtures", label: "nav.fixtures" },
   { to: "/standings", label: "nav.standings" },
   { to: "/players", label: "nav.players" },
   { to: "/nations", label: "nav.nations" },
-  { to: "/news", label: "nav.news" },
+  { to: "/news", label: "nav.news", external: true },
 ];
 
 export function Nav() {
@@ -49,23 +55,32 @@ export function Nav() {
 
         <nav aria-label={t("nav.primary")} className="hidden md:block">
           <ul className="flex items-center gap-6 lg:gap-8">
-            {LINKS.map((link) => (
-              <li key={link.to}>
-                <NavLink
-                  to={link.to}
-                  end={link.end}
-                  className={({ isActive }) =>
-                    `u-display relative text-xs transition-colors duration-300
-                     ${isActive ? "text-ink-bright" : "text-ink-muted hover:text-ink-bright"}
-                     after:absolute after:-bottom-2 after:left-0 after:h-px after:bg-ember
-                     after:transition-all after:duration-300 after:ease-out
-                     ${isActive ? "after:w-full" : "after:w-0 hover:after:w-full"}`
-                  }
-                >
-                  {t(link.label)}
-                </NavLink>
-              </li>
-            ))}
+            {LINKS.map((link) => {
+              const desktopClass = (isActive: boolean) =>
+                `u-display relative text-xs transition-colors duration-300
+                 ${isActive ? "text-ink-bright" : "text-ink-muted hover:text-ink-bright"}
+                 after:absolute after:-bottom-2 after:left-0 after:h-px after:bg-ember
+                 after:transition-all after:duration-300 after:ease-out
+                 ${isActive ? "after:w-full" : "after:w-0 hover:after:w-full"}`;
+
+              return (
+                <li key={link.to}>
+                  {link.external ? (
+                    <a href={link.to} className={desktopClass(false)}>
+                      {t(link.label)}
+                    </a>
+                  ) : (
+                    <NavLink
+                      to={link.to}
+                      end={link.end}
+                      className={({ isActive }) => desktopClass(isActive)}
+                    >
+                      {t(link.label)}
+                    </NavLink>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
@@ -116,20 +131,29 @@ export function Nav() {
               ${!open ? "hidden" : ""}`}
       >
         <ul className="flex flex-col gap-1">
-          {LINKS.map((link) => (
-            <li key={link.to}>
-              <NavLink
-                to={link.to}
-                end={link.end}
-                className={({ isActive }) =>
-                  `u-display block border-b border-ink-line py-4 text-2xl
-                   ${isActive ? "text-ember" : "text-ink-bright"}`
-                }
-              >
-                {t(link.label)}
-              </NavLink>
-            </li>
-          ))}
+          {LINKS.map((link) => {
+            const drawerClass = (isActive: boolean) =>
+              `u-display block border-b border-ink-line py-4 text-2xl
+               ${isActive ? "text-ember" : "text-ink-bright"}`;
+
+            return (
+              <li key={link.to}>
+                {link.external ? (
+                  <a href={link.to} className={drawerClass(false)}>
+                    {t(link.label)}
+                  </a>
+                ) : (
+                  <NavLink
+                    to={link.to}
+                    end={link.end}
+                    className={({ isActive }) => drawerClass(isActive)}
+                  >
+                    {t(link.label)}
+                  </NavLink>
+                )}
+              </li>
+            );
+          })}
         </ul>
 
         <a

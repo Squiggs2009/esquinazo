@@ -1,147 +1,157 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArticleCardSkeleton, SkeletonList } from "@/components/Skeleton";
 import { EmptyState, ErrorState } from "@/components/States";
 import { PageHeader, useTitle } from "@/components/PageShell";
 import { useT } from "@/context/LanguageContext";
-import { useNews } from "@/lib/queries";
 import { articleDate } from "@/lib/format";
 import { useReveal } from "@/lib/motion";
-import type { NewsArticle } from "@/lib/api";
-import { ApiError } from "@/lib/api";
+import {
+  ARCHIVE_PAGE_SIZE,
+  STATIC_PAGE_SIZE,
+  getArchiveEntries,
+  wireConfigured,
+  type WireListEntry,
+} from "@/lib/sanity";
 
 /**
- * The API has no /news endpoint yet. The page is wired to one so it lights up
- * the moment it ships; until then a 404 is treated as "not published" rather
- * than an error, because nothing is broken.
+ * The Wire archive - everything older than the ten entries on the static /news
+ * page, loaded client-side straight from Sanity.
+ *
+ * /news itself is not this page: it is pre-rendered HTML written to S3 by the
+ * generate-wire-page Lambda so crawlers get real content instead of an empty
+ * SPA shell. This route picks up where that page stops, which is why the first
+ * request starts at an offset rather than zero.
+ *
+ * Note every link out of here is a plain <a>, not a react-router <Link>. Entry
+ * pages are static files served by CloudFront; a client-side navigation would
+ * be intercepted by the router, match no route, and land on the 404.
  */
 export default function News() {
   const t = useT();
-  useTitle(t("news.title"));
+  useTitle(t("wire.archiveTitle"));
 
-  const { data, isPending, isError, error, refetch } = useNews();
-  const articles = data?.data.articles ?? [];
-  const notPublishedYet = error instanceof ApiError && error.status === 404;
+  const [entries, setEntries] = useState<WireListEntry[]>([]);
+  const [error, setError] = useState<unknown>(null);
+  const [loading, setLoading] = useState(true);
+  const [exhausted, setExhausted] = useState(false);
+
+  const load = useCallback(async (offset: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const batch = await getArchiveEntries(offset, ARCHIVE_PAGE_SIZE);
+      setEntries((current) => (offset === STATIC_PAGE_SIZE ? batch : [...current, ...batch]));
+      // A short batch means there is nothing left behind it.
+      if (batch.length < ARCHIVE_PAGE_SIZE) setExhausted(true);
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!wireConfigured) {
+      setLoading(false);
+      return;
+    }
+    void load(STATIC_PAGE_SIZE);
+  }, [load]);
+
+  const showSkeleton = loading && entries.length === 0;
 
   return (
     <>
       <PageHeader
-        eyebrow={t("news.eyebrow")}
-        title={t("news.title")}
-        lede={t("news.lede")}
+        eyebrow={t("wire.archiveEyebrow")}
+        title={t("wire.archiveTitle")}
+        lede={t("wire.archiveLede")}
       />
 
       <div className="u-frame pb-section">
-        {isPending ? (
+        <p className="mb-8 text-sm text-ink-muted">
+          <a href="/news" className="u-link">
+            {t("wire.backToWire")}
+          </a>
+        </p>
+
+        {showSkeleton ? (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             <SkeletonList count={6}>{() => <ArticleCardSkeleton />}</SkeletonList>
           </div>
-        ) : notPublishedYet ? (
-          <EmptyState
-            headline={t("news.notWiredTitle")}
-            detail={t("news.notWiredDetail")}
-          />
-        ) : isError ? (
-          <ErrorState error={error} onRetry={() => void refetch()} />
-        ) : articles.length === 0 ? (
-          <EmptyState
-            headline={t("news.emptyTitle")}
-            detail={t("news.emptyDetail")}
-          />
+        ) : error ? (
+          <ErrorState error={error} onRetry={() => void load(STATIC_PAGE_SIZE)} />
+        ) : entries.length === 0 ? (
+          <EmptyState headline={t("wire.emptyTitle")} detail={t("wire.emptyDetail")} />
         ) : (
-          <ArticleGrid articles={articles} />
+          <>
+            <ArchiveGrid entries={entries} />
+
+            {!exhausted && (
+              <div className="mt-12 text-center">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => void load(STATIC_PAGE_SIZE + entries.length)}
+                  className="u-display border border-ember px-6 py-2.5 text-xs uppercase tracking-wider
+                             text-ember transition-colors duration-300 hover:bg-ember hover:text-ink
+                             disabled:opacity-50"
+                >
+                  {loading ? t("wire.loading") : t("wire.loadMore")}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </>
   );
 }
 
-function ArticleGrid({ articles }: { articles: NewsArticle[] }) {
-  const scope = useReveal<HTMLDivElement>({ y: 26, stagger: 0.07 });
-  const [lead, ...rest] = articles;
-
-  return (
-    <div ref={scope} className="flex flex-col gap-10">
-      {/* The first story runs wide — an editorial page should not be a uniform grid. */}
-      {lead && <ArticleCard article={lead} featured />}
-
-      {rest.length > 0 && (
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {rest.map((article) => (
-            <ArticleCard key={article.id} article={article} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ArticleCard({ article, featured = false }: { article: NewsArticle; featured?: boolean }) {
-  const Wrapper = article.url ? "a" : "div";
-
-  return (
-    <article className="js-reveal">
-      <Wrapper
-        {...(article.url
-          ? { href: article.url, target: "_blank", rel: "noopener noreferrer" }
-          : {})}
-        className={`group block h-full border border-ink-line transition-all duration-500 ease-out
-                    hover:-translate-y-1 hover:border-ember/40 hover:shadow-ember
-                    ${featured ? "sm:grid sm:grid-cols-2" : ""}`}
-      >
-        <ArticleMedia article={article} featured={featured} />
-
-        <div className={`flex flex-col p-5 ${featured ? "justify-center sm:p-9" : ""}`}>
-          <p className="u-eyebrow text-ember">
-            {article.source ?? "Esquinazo"} · {articleDate(article.publishedAt)}
-          </p>
-
-          <h2
-            className={`u-display mt-3 break-words text-ink-bright transition-colors duration-300
-                        group-hover:text-ember ${featured ? "text-title" : "text-base leading-snug"}`}
-          >
-            {article.title}
-          </h2>
-
-          {article.summary && (
-            <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-ink-muted">
-              {article.summary}
-            </p>
-          )}
-        </div>
-      </Wrapper>
-    </article>
-  );
-}
-
-/**
- * NewsAPI's `urlToImage` is frequently null and occasionally a dead link, so
- * the branded wash is the fallback for both cases - not a broken-image icon -
- * following the same onError-swap pattern PlayerAvatar and TeamBadge use.
- */
-function ArticleMedia({ article, featured }: { article: NewsArticle; featured: boolean }) {
-  const [failed, setFailed] = useState(false);
-  const showPhoto = Boolean(article.imageUrl) && !failed;
+function ArchiveGrid({ entries }: { entries: WireListEntry[] }) {
+  // Re-keyed on length so a "load more" batch animates in rather than
+  // appearing at the opacity:0 the reveal leaves untouched nodes at.
+  const scope = useReveal<HTMLDivElement>({ y: 26, stagger: 0.05 });
 
   return (
     <div
-      className={`relative overflow-hidden bg-ink-raised ${featured ? "aspect-[16/10] sm:aspect-auto" : "aspect-[16/10]"}`}
-      aria-hidden="true"
+      key={entries.length}
+      ref={scope}
+      className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
     >
-      {showPhoto ? (
-        <img
-          src={article.imageUrl}
-          alt=""
-          loading="lazy"
-          onError={() => setFailed(true)}
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : (
-        <>
-          <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(204,85,0,0.22),transparent_55%)]" />
-          <div className="absolute inset-0 bg-stands opacity-60" />
-          <span className="u-display absolute bottom-4 left-4 text-4xl text-ink-line">E</span>
-        </>
-      )}
+      {entries.map((entry) => (
+        <ArchiveCard key={entry._id} entry={entry} />
+      ))}
     </div>
+  );
+}
+
+function ArchiveCard({ entry }: { entry: WireListEntry }) {
+  const t = useT();
+  const kind = entry.contentType === "opinion" ? t("wire.opinion") : t("wire.news");
+
+  return (
+    <article className="js-reveal">
+      <a
+        href={`/news/${entry.slug}`}
+        className="group flex h-full flex-col border border-ink-line p-5 transition-all duration-500
+                   ease-out hover:-translate-y-1 hover:border-ember/40 hover:shadow-ember"
+      >
+        <p className="u-eyebrow text-ember">
+          {kind} · {articleDate(entry.publishedAt)}
+        </p>
+
+        <h2
+          className="u-display mt-3 break-words text-base leading-snug text-ink-bright
+                     transition-colors duration-300 group-hover:text-ember"
+        >
+          {entry.headline}
+        </h2>
+
+        {entry.sourceLabel && (
+          <p className="mt-auto pt-4 text-xs text-ink-muted">{entry.sourceLabel}</p>
+        )}
+      </a>
+    </article>
   );
 }

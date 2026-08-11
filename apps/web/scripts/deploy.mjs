@@ -16,8 +16,16 @@ function tfOutput(name) {
 const bucket = tfOutput("web_bucket_name");
 const distributionId = tfOutput("cloudfront_id");
 
+// --delete still prunes stale build artifacts, but the Wire lives only in S3:
+// its pages and sitemap are written by the generate-wire-page Lambda and never
+// exist in dist/, so an unscoped --delete would wipe the whole archive on the
+// next frontend deploy.
+const syncExcludes = ["--exclude", "news/*", "--exclude", "sitemap.xml"];
+
 console.log(`Syncing ${distDir} -> s3://${bucket}`);
-execFileSync("aws", ["s3", "sync", distDir, `s3://${bucket}`, "--delete"], { stdio: "inherit" });
+execFileSync("aws", ["s3", "sync", distDir, `s3://${bucket}`, "--delete", ...syncExcludes], {
+  stdio: "inherit",
+});
 
 console.log(`Invalidating distribution ${distributionId}`);
 execFileSync(

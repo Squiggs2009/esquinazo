@@ -1,0 +1,145 @@
+import { defineField, defineType } from "sanity";
+
+/**
+ * A Wire entry - one published piece of writing.
+ *
+ * IMPORTANT: this schema was reconstructed from the GROQ projections that
+ * already read these documents (apps/api/src/lib/sanity.ts and
+ * apps/web/src/lib/sanity.ts), not copied from a pre-existing definition - the
+ * repo never contained one. A Sanity dataset is schemaless, so this file only
+ * drives the Studio UI and its validation: if it disagrees with the shape the
+ * existing documents were authored under, editors here will silently write
+ * different documents than the ones already in the dataset. Reconcile against
+ * a real published entry before relying on it.
+ *
+ * Two fields are required because the publish pipeline filters on them -
+ * `defined(slug.current) && defined(publishedAt)` - so an entry missing either
+ * is invisible to both the static /news page and the archive.
+ */
+export const wireEntry = defineType({
+  name: "wireEntry",
+  title: "Wire entry",
+  type: "document",
+  fields: [
+    defineField({
+      name: "headline",
+      title: "Headline",
+      type: "string",
+      validation: (rule) => rule.required().max(160),
+    }),
+
+    defineField({
+      name: "slug",
+      title: "Slug",
+      type: "slug",
+      description: "The URL segment: /news/<slug>. Changing it orphans the old page.",
+      options: { source: "headline", maxLength: 96 },
+      validation: (rule) => rule.required(),
+    }),
+
+    defineField({
+      name: "publishedAt",
+      title: "Published at",
+      type: "datetime",
+      description: "Drives ordering. Entries without a date are never listed.",
+      initialValue: () => new Date().toISOString(),
+      validation: (rule) => rule.required(),
+    }),
+
+    defineField({
+      name: "contentType",
+      title: "Type",
+      type: "string",
+      options: {
+        list: [
+          { title: "News", value: "news" },
+          { title: "Opinion", value: "opinion" },
+        ],
+        layout: "radio",
+      },
+      initialValue: "news",
+    }),
+
+    defineField({
+      name: "language",
+      title: "Language",
+      type: "string",
+      options: {
+        list: [
+          { title: "English", value: "en" },
+          { title: "Español", value: "es" },
+        ],
+        layout: "radio",
+      },
+      initialValue: "en",
+    }),
+
+    defineField({
+      name: "body",
+      title: "Body",
+      // Plain multi-line text, not Portable Text - no block editor, no marks.
+      // `text` rather than `string`: string's Studio default caps input at 200
+      // characters, too short for an opinion piece. renderBody() and
+      // bodyToPlainText() in apps/api/src/lib/wire-html.ts already branch on
+      // `typeof body === "string"` (splitting on blank lines into paragraphs),
+      // so this needs no change on the Lambda side.
+      type: "text",
+      rows: 8,
+      validation: (rule) => rule.max(2000),
+    }),
+
+    defineField({
+      name: "sourceLabel",
+      title: "Source label",
+      type: "string",
+      description: "Attribution shown under the headline, e.g. 'Récord'.",
+    }),
+
+    defineField({
+      name: "sourceUrl",
+      title: "Source URL",
+      type: "url",
+      // Mirrors safeUrl() in the page renderer, which drops anything that is
+      // not http/https rather than emitting it into an href.
+      validation: (rule) => rule.uri({ scheme: ["http", "https"] }),
+    }),
+
+    defineField({
+      name: "relatedPlayer",
+      title: "Related player",
+      type: "object",
+      options: { collapsible: true, collapsed: true },
+      fields: [
+        defineField({ name: "playerId", title: "API-Football player ID", type: "number" }),
+        defineField({ name: "name", title: "Name", type: "string" }),
+      ],
+    }),
+
+    defineField({
+      name: "relatedTeam",
+      title: "Related team",
+      type: "object",
+      options: { collapsible: true, collapsed: true },
+      fields: [
+        defineField({ name: "teamId", title: "API-Football team ID", type: "number" }),
+        defineField({ name: "name", title: "Name", type: "string" }),
+      ],
+    }),
+  ],
+
+  orderings: [
+    {
+      title: "Newest first",
+      name: "publishedAtDesc",
+      by: [{ field: "publishedAt", direction: "desc" }],
+    },
+  ],
+
+  preview: {
+    select: { title: "headline", contentType: "contentType", publishedAt: "publishedAt" },
+    prepare({ title, contentType, publishedAt }) {
+      const date = publishedAt ? new Date(publishedAt).toLocaleDateString() : "unpublished";
+      return { title, subtitle: `${contentType ?? "news"} · ${date}` };
+    },
+  },
+});

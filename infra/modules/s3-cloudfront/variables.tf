@@ -74,6 +74,24 @@ variable "spa_fallback_ttl" {
   default     = 10
 }
 
+variable "directory_index_rewrite" {
+  description = <<-EOT
+    Attach a viewer-request CloudFront Function that rewrites "/foo/" and
+    extensionless "/foo" to "/foo/index.html".
+
+    The origin is the S3 REST endpoint, which does no directory-index
+    resolution: without this, an object at foo/index.html is reachable only at
+    its literal /index.html URL and every clean URL falls through to
+    spa_fallback. Paths whose last segment contains a dot are left alone, and
+    anything that still misses falls back exactly as before, so client-side
+    routes keep working.
+
+    Defaults to false so existing distributions are unaffected until opted in.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "allowed_methods" {
   description = "HTTP methods CloudFront forwards to the origin."
   type        = list(string)

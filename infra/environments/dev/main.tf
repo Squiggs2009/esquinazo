@@ -5,8 +5,8 @@
 #
 #   s3-cloudfront -> React bundle on a private bucket behind CloudFront
 #   dynamodb      -> TTL cache for upstream football data
-#   lambda        -> fixtures / standings / players / player-stats / transfers / teams / news / refresh
-#   api-gateway   -> HTTP API routing /fixtures, /standings, /players, /players/stats, /transfers, /teams, /news
+#   lambda        -> fixtures / standings / players / player-stats / transfers / teams / news / generate-wire-page / refresh
+#   api-gateway   -> HTTP API routing /fixtures, /standings, /players, /players/stats, /transfers, /teams, /news, POST /wire/publish
 #   eventbridge   -> 5-minute schedule invoking the refresh function
 #   route53       -> DNS, skipped entirely while domain_name is "localhost"
 #
@@ -84,6 +84,49 @@ locals {
     }
   }
 
+  # The Wire's page generator. Kept separate for three reasons: it is a POST
+  # route rather than GET, it holds its own secret (the Sanity webhook signing
+  # key, scoped here rather than added to common_environment_variables), and it
+  # is the only function that writes to S3 and CloudFront. Those two extra
+  # permissions are granted narrowly - the news/ prefix and sitemap.xml, and
+  # invalidations on this one distribution.
+  wire_function = {
+    "generate-wire-page" = {
+      source_dir = "${local.lambda_source_root}/generate-wire-page"
+
+      # Renders two pages, merges the sitemap and waits on an invalidation:
+      # more work than a cache read, so it gets more room than the 10s default.
+      timeout     = 30
+      memory_size = 256
+
+      environment_variables = {
+        SANITY_WEBHOOK_SECRET      = var.sanity_webhook_secret
+        SANITY_PROJECT_ID          = var.sanity_project_id
+        SANITY_DATASET             = var.sanity_dataset
+        SANITY_API_VERSION         = var.sanity_api_version
+        WEB_BUCKET_NAME            = module.web.bucket_id
+        CLOUDFRONT_DISTRIBUTION_ID = module.web.distribution_id
+        SITE_URL                   = module.web.site_url
+      }
+
+      additional_policy_statements = [
+        {
+          sid     = "WriteWirePages"
+          actions = ["s3:PutObject", "s3:GetObject"]
+          resources = [
+            "${module.web.bucket_arn}/news/*",
+            "${module.web.bucket_arn}/sitemap.xml",
+          ]
+        },
+        {
+          sid       = "InvalidateWirePaths"
+          actions   = ["cloudfront:CreateInvalidation"]
+          resources = [module.web.distribution_arn]
+        },
+      ]
+    }
+  }
+
   cors_allow_origins = local.use_custom_domain ? [
     "https://${var.domain_name}",
     "https://www.${var.domain_name}",
@@ -107,6 +150,11 @@ module "web" {
 
   price_class  = "PriceClass_100"
   spa_fallback = true
+
+  # Required for the Wire: the S3 REST origin never resolves /news/<slug> to
+  # news/<slug>/index.html on its own, so without this every generated page's
+  # canonical URL would serve the SPA shell instead.
+  directory_index_rewrite = true
 
   tags = local.tags
 }
@@ -144,6 +192,7 @@ module "functions" {
     local.api_functions,
     local.news_function,
     local.player_stats_function,
+    local.wire_function,
     local.refresh_function,
   )
 
@@ -193,6 +242,15 @@ module "api" {
         lambda_function_name = module.functions.function_names["player-stats"]
         lambda_invoke_arn    = module.functions.invoke_arns["player-stats"]
         methods              = ["GET"]
+      }
+    },
+    {
+      # Sanity publish webhook. POST-only, and authenticated by the HMAC
+      # signature the handler verifies rather than an API Gateway authorizer.
+      "/wire/publish" = {
+        lambda_function_name = module.functions.function_names["generate-wire-page"]
+        lambda_invoke_arn    = module.functions.invoke_arns["generate-wire-page"]
+        methods              = ["POST"]
       }
     },
   )

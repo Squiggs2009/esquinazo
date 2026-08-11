@@ -133,6 +133,16 @@ resource "aws_cloudfront_origin_access_control" "this" {
   signing_protocol                  = "sigv4"
 }
 
+resource "aws_cloudfront_function" "directory_index" {
+  count = var.directory_index_rewrite ? 1 : 0
+
+  name    = "${local.name_prefix}-directory-index"
+  runtime = "cloudfront-js-2.0"
+  comment = "Rewrites directory paths to /index.html for the S3 REST origin"
+  publish = true
+  code    = file("${path.module}/functions/directory-index.js")
+}
+
 resource "aws_cloudfront_distribution" "this" {
   enabled             = true
   comment             = "${local.name_prefix} web distribution"
@@ -159,6 +169,15 @@ resource "aws_cloudfront_distribution" "this" {
 
     cache_policy_id            = var.cache_policy_id
     response_headers_policy_id = var.response_headers_policy_id
+
+    dynamic "function_association" {
+      for_each = var.directory_index_rewrite ? [1] : []
+
+      content {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.directory_index[0].arn
+      }
+    }
   }
 
   # Single-page app: let the client router handle unknown paths.

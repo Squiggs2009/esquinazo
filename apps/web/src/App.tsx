@@ -55,7 +55,12 @@ function Shell() {
               <Route path="/standings" element={<Standings />} />
               <Route path="/players" element={<Players />} />
               <Route path="/nations" element={<Nations />} />
+              {/* The Wire archive. /news itself is a static file served by
+                  CloudFront and never reaches the router in production; it is
+                  routed here too so the page is still reachable in dev, where
+                  there is no S3 origin to serve it. */}
               <Route path="/news" element={<News />} />
+              <Route path="/news/archive" element={<News />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </PageTransition>
