@@ -21,6 +21,13 @@
     "forceConsistentCasingInFileNames": true,
 
     "noEmit": true,
+    // Belt-and-suspenders alongside noEmit: the typecheck script overrides
+    // noEmit to false (tsc -b's project-reference mode needs it to actually
+    // run), and without an outDir that emits compiled .js straight into src/,
+    // shadowing the real .tsx files - Vite's resolver picks the stray .js
+    // over the .tsx it sits beside, silently serving stale compiled output
+    // instead of current source. Mirrors tsconfig.node.json's own outDir.
+    "outDir": "./node_modules/.tmp/tsconfig",
     "baseUrl": ".",
     "paths": { "@/*": ["src/*"] }
   },
