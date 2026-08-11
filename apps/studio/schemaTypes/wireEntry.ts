@@ -123,6 +123,34 @@ export const wireEntry = defineType({
       fields: [
         defineField({ name: "teamId", title: "API-Football team ID", type: "number" }),
         defineField({ name: "name", title: "Name", type: "string" }),
+        defineField({
+          name: "leagueId",
+          title: "Competition",
+          description:
+            "Which league this team plays in. Needed to deep-link the Wire entry straight to " +
+            "the player's stat card on /players - without it the site's default league (Premier " +
+            "League) is searched instead, and the link silently misses any team playing elsewhere.",
+          type: "number",
+          options: {
+            // Mirrors LEAGUES in apps/web/src/lib/api.ts. Kept as a fixed list
+            // rather than free entry so an editor cannot typo an id the site
+            // does not actually configure.
+            list: [
+              { title: "Premier League (England)", value: 39 },
+              { title: "Championship (England)", value: 40 },
+              { title: "La Liga (Spain)", value: 140 },
+              { title: "Serie A (Italy)", value: 135 },
+              { title: "Bundesliga (Germany)", value: 78 },
+              { title: "Ligue 1 (France)", value: 61 },
+              { title: "Champions League (Europe)", value: 2 },
+              { title: "Eredivisie (Netherlands)", value: 88 },
+              { title: "Primeira Liga (Portugal)", value: 94 },
+              { title: "Liga MX (Mexico)", value: 262 },
+              { title: "MLS (United States)", value: 253 },
+              { title: "Leagues Cup (North America)", value: 772 },
+            ],
+          },
+        }),
       ],
     }),
   ],

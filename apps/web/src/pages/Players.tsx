@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PlayerAvatar, Chip, TeamBadge } from "@/components/Badges";
 import { LeagueRail } from "@/components/LeagueRail";
@@ -38,9 +38,21 @@ export default function Players() {
 
   const [params, setParams] = useSearchParams();
   const teamParam = Number(params.get("team"));
+  const playerParam = Number(params.get("player"));
+  const leagueParam = Number(params.get("league"));
   const [search, setSearch] = useState("");
-  const [competition, setCompetition] = useState(DEFAULT_LEAGUE_ID);
+  // Seeded from the URL once, on mount: a Wire entry's deep link names the
+  // team's actual competition (e.g. Liga MX), which may not be the site's
+  // default (Premier League). Without this, ?team= would be checked against
+  // the wrong league's roster and silently never match. Only the initial URL
+  // value is honoured - later league switches go through the rail's onChange.
+  const [competition, setCompetition] = useState(() =>
+    LEAGUES.some((l) => l.id === leagueParam) ? leagueParam : DEFAULT_LEAGUE_ID,
+  );
   const [selectedPlayer, setSelectedPlayer] = useState<SquadPlayer | null>(null);
+  // Guards the deep-link auto-open to a single attempt, so closing the modal
+  // (or a background squad refetch) never reopens it on its own.
+  const autoOpenedPlayerRef = useRef(false);
 
   const {
     data: teamsResponse,
@@ -68,6 +80,23 @@ export default function Players() {
 
   const squad = data?.data.players ?? [];
   const team = data?.data.team ?? null;
+
+  // Opens the stat modal for a Wire-linked player once their squad has
+  // actually loaded - matches what clicking their card would do, just
+  // triggered by the URL instead of a click. Waiting for teamId === teamParam
+  // (rather than just teamId) confirms the league resolved to the URL's team
+  // rather than a same-league fallback club that happens to be selected
+  // while data is still settling.
+  useEffect(() => {
+    if (autoOpenedPlayerRef.current) return;
+    if (!Number.isFinite(playerParam) || playerParam <= 0) return;
+    if (teamId !== teamParam) return;
+    if (isPending || !data) return;
+
+    autoOpenedPlayerRef.current = true;
+    const match = data.data.players.find((player) => player.id === playerParam);
+    if (match) setSelectedPlayer(match);
+  }, [playerParam, teamParam, teamId, isPending, data]);
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();

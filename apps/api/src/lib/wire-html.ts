@@ -133,6 +133,18 @@ export function renderBody(body: WireEntry["body"]): string {
   return body.map(renderBlock).filter(Boolean).join("\n");
 }
 
+/**
+ * "Back to Esquinazo" link to the homepage, distinct from the wordmark in the
+ * topbar (that one is unconditionally English - it is chrome, not content)
+ * and from the existing "← The Wire" link (that one returns to the listing,
+ * not the site root). Language-matched so an entry written in Spanish does
+ * not end on an English sentence.
+ */
+function backHomeLink(lang: string): string {
+  const label = lang === "es" ? "← Volver a Esquinazo" : "← Back to Esquinazo";
+  return `<p><a href="/">${label}</a></p>`;
+}
+
 function formatDate(iso: string, language: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
@@ -278,12 +290,26 @@ export function renderEntryPage(entry: WireEntry, ctx: RenderContext): string {
 
   // The SPA has no per-player route (players are a modal on /players, which
   // deliberately does not change the URL), so this deep-links as far as the
-  // app actually goes: the club's squad when the team is known, the squads
-  // index otherwise.
+  // app can resolve: /players?league=&team=&player= opens straight to the
+  // player's stat card if all three are known - Players.tsx needs the league
+  // to select the right club list and the team to fetch the squad the player
+  // object comes from, since there is no player-to-team lookup endpoint.
+  // Any of the three can be missing (an editor left relatedTeam blank, or the
+  // team's leagueId wasn't set); the link just degrades toward a plainer
+  // /players landing rather than breaking.
   const relatedName = entry.relatedPlayer?.name;
-  const teamId = entry.relatedTeam?.id;
+  const relatedPlayerId = entry.relatedPlayer?.id;
+  const relatedTeamId = entry.relatedTeam?.id;
+  const relatedLeagueId = entry.relatedTeam?.leagueId;
+
+  const playersParams = new URLSearchParams();
+  if (relatedLeagueId) playersParams.set("league", String(relatedLeagueId));
+  if (relatedTeamId) playersParams.set("team", String(relatedTeamId));
+  if (relatedPlayerId) playersParams.set("player", String(relatedPlayerId));
+  const playersQuery = playersParams.toString();
+
   const relatedLine = relatedName
-    ? `<p>More on <a href="/players${teamId ? `?team=${encodeURIComponent(String(teamId))}` : ""}">${escapeHtml(
+    ? `<p>More on <a href="/players${playersQuery ? `?${playersQuery}` : ""}">${escapeHtml(
         relatedName,
       )}</a></p>`
     : "";
@@ -293,7 +319,7 @@ export function renderEntryPage(entry: WireEntry, ctx: RenderContext): string {
 <h1>${escapeHtml(entry.headline)}</h1>
 <p class="meta"><time datetime="${escapeHtml(entry.publishedAt)}">${escapeHtml(published)}</time></p>
 <div class="body">${renderBody(entry.body)}</div>
-<div class="aside">${sourceLine}${relatedLine}<p><a href="/news">← The Wire</a></p></div>
+<div class="aside">${sourceLine}${relatedLine}<p><a href="/news">← The Wire</a></p>${backHomeLink(lang)}</div>
 </article></main>`;
 
   return shell({ lang, title: `${entry.headline} — Esquinazo`, head, content });
@@ -327,7 +353,7 @@ export function renderListingPage(entries: WireEntry[], ctx: RenderContext): str
 <h1>The Wire</h1>
 <p class="meta">Football news and opinion.</p>
 <div class="body"><ul class="entries">${items}</ul></div>
-<div class="aside"><p><a href="/news/archive">Older entries →</a></p></div>
+<div class="aside"><p><a href="/news/archive">Older entries →</a></p>${backHomeLink("en")}</div>
 </article></main>`;
 
   return shell({ lang: "en", title: "The Wire — Esquinazo", head, content });

@@ -46,7 +46,7 @@ export interface WireEntry {
   sourceLabel?: string | null;
   sourceUrl?: string | null;
   relatedPlayer?: { id?: number | null; name?: string | null } | null;
-  relatedTeam?: { id?: number | null; name?: string | null } | null;
+  relatedTeam?: { id?: number | null; name?: string | null; leagueId?: number | null } | null;
   publishedAt: string;
 }
 
@@ -66,7 +66,7 @@ const ENTRY_PROJECTION = `{
   sourceLabel,
   sourceUrl,
   "relatedPlayer": relatedPlayer{ "id": coalesce(playerId, id), "name": coalesce(name, playerName) },
-  "relatedTeam": relatedTeam{ "id": coalesce(teamId, id), "name": coalesce(name, teamName) },
+  "relatedTeam": relatedTeam{ "id": coalesce(teamId, id), "name": coalesce(name, teamName), leagueId },
   publishedAt
 }`;
 
