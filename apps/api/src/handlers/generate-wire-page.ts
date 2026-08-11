@@ -28,6 +28,7 @@ import {
   parseSitemap,
   renderEntryPage,
   renderListingPage,
+  type RenderContext,
 } from "../lib/wire-html";
 
 /** Entries shown on the static page 1. Older ones stay client-side at /news/archive. */
@@ -183,6 +184,11 @@ export const handler = async (
     const bucket = requireEnv("WEB_BUCKET_NAME");
     const distributionId = requireEnv("CLOUDFRONT_DISTRIBUTION_ID");
     const siteUrl = requireEnv("SITE_URL");
+    // Not secrets - the same project id/dataset already ship inside the public
+    // web bundle, since the browser needs them to query the (deliberately
+    // public) dataset directly. Needed here only to build heroImage CDN URLs.
+    const sanityProjectId = requireEnv("SANITY_PROJECT_ID");
+    const sanityDataset = requireEnv("SANITY_DATASET");
 
     const body = rawBody(event);
     const check = verifySignature(headerValue(event, "sanity-webhook-signature"), body, secret);
@@ -221,11 +227,12 @@ export const handler = async (
     }
 
     const url = entryUrl(siteUrl, entry.slug);
+    const renderCtx: RenderContext = { siteUrl, sanityProjectId, sanityDataset };
 
-    await putHtml(bucket, `news/${entry.slug}/index.html`, renderEntryPage(entry, { siteUrl }));
+    await putHtml(bucket, `news/${entry.slug}/index.html`, renderEntryPage(entry, renderCtx));
 
     const recent = await getRecentWireEntries(LISTING_SIZE);
-    await putHtml(bucket, "news/index.html", renderListingPage(recent, { siteUrl }));
+    await putHtml(bucket, "news/index.html", renderListingPage(recent, renderCtx));
 
     const existing = await readSitemap(bucket);
     const sitemap = mergeSitemap(existing ? parseSitemap(existing) : [], {

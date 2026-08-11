@@ -13,7 +13,8 @@
  * build step: they cannot import the SPA's stylesheet, and a hashed CSS
  * filename would go stale the next time the frontend is rebuilt.
  */
-import type { PortableTextBlock, WireEntry } from "./sanity";
+import { createImageUrlBuilder } from "@sanity/image-url";
+import type { PortableTextBlock, SanityImage, WireEntry } from "./sanity";
 
 /** Mirrors the tokens in apps/web/tailwind.config.js. */
 const INK = "#0a0a0a";
@@ -173,6 +174,8 @@ h1{font-family:"Archivo",Arial Narrow,sans-serif;font-size:clamp(2rem,5vw,3.25re
 letter-spacing:-.02em;margin:1.25rem 0 0;color:${INK_BRIGHT}}
 .meta{color:${INK_MUTED};font-size:.8125rem;margin:1rem 0 0}
 article{padding:3rem 0 4rem}
+.hero{margin:1.25rem 0 0;overflow:hidden;background:${INK_RAISED}}
+.hero img{display:block;width:100%;height:auto}
 .body{margin-top:2.5rem;border-top:1px solid ${INK_LINE};padding-top:2.5rem}
 .body p{margin:0 0 1.25rem}
 .body h2,.body h3,.body h4,.body h5,.body h6{font-family:"Archivo",Arial Narrow,sans-serif;
@@ -186,8 +189,9 @@ color:${INK_MUTED}}
 footer{border-top:1px solid ${INK_LINE};padding:2rem 0;color:${INK_MUTED};font-size:.75rem}
 ul.entries{list-style:none;margin:0;padding:0}
 ul.entries li{border-bottom:1px solid ${INK_LINE}}
-ul.entries a{display:block;padding:1.5rem 0;color:inherit}
+ul.entries a{display:flex;align-items:center;gap:1.25rem;padding:1.5rem 0;color:inherit}
 ul.entries a:hover{text-decoration:none;background:${INK_RAISED}}
+ul.entries img{width:4.5rem;height:4.5rem;object-fit:cover;flex-shrink:0;background:${INK_RAISED}}
 ul.entries h2{font-family:"Archivo",Arial Narrow,sans-serif;font-size:1.25rem;line-height:1.2;
 margin:.5rem 0 0;color:${INK_BRIGHT}}
 ul.entries a:hover h2{color:${EMBER_BRIGHT}}
@@ -226,11 +230,65 @@ ${options.content}
 
 export interface RenderContext {
   siteUrl: string;
+  sanityProjectId: string;
+  sanityDataset: string;
 }
 
 /** Canonical URL for an entry. Kept in one place so the page, the sitemap and the invalidation agree. */
 export function entryUrl(siteUrl: string, slug: string): string {
   return `${siteUrl.replace(/\/$/, "")}/news/${slug}`;
+}
+
+/**
+ * Builds Sanity CDN URLs from a heroImage field value - one uploaded asset,
+ * resized and cropped on the fly per query params, rather than storing
+ * separate uploads per size. `crop` (an editor-drawn trim) always applies;
+ * `hotspot` only comes into play when `dimensions` forces an aspect ratio the
+ * source image doesn't already have, which is exactly the listing thumbnail
+ * and og:image cases below - the image-url builder computes the centered
+ * rect from it automatically.
+ */
+function heroImageUrl(
+  image: SanityImage | null | undefined,
+  ctx: RenderContext,
+  dimensions: { width: number; height?: number },
+): string | null {
+  if (!image?.asset?._ref) return null;
+
+  let built = createImageUrlBuilder({ projectId: ctx.sanityProjectId, dataset: ctx.sanityDataset })
+    .image(image)
+    .auto("format")
+    .width(dimensions.width);
+
+  if (dimensions.height) built = built.height(dimensions.height).fit("crop");
+
+  return built.url();
+}
+
+/**
+ * Parses the original upload's pixel dimensions out of its asset `_ref`, e.g.
+ * "image-<id>-3024x4032-jpg" -> "3024/4032". Used only for a CSS
+ * `aspect-ratio` hint on the hero image: it renders at its natural,
+ * crop-trimmed aspect rather than a size fixed here, so without this the
+ * browser cannot reserve its box and the page jumps once the image loads.
+ * The listing thumbnail needs no equivalent - it is forced to a fixed square,
+ * so its ratio is a CSS constant instead.
+ */
+function imageAspectRatio(image: SanityImage | null | undefined): string | null {
+  const ref = image?.asset?._ref;
+  const match = ref ? /-(\d+)x(\d+)-/.exec(ref) : null;
+  if (!match) return null;
+
+  let width = Number(match[1]);
+  let height = Number(match[2]);
+  const crop = image?.crop;
+  if (crop) {
+    width *= 1 - (crop.left ?? 0) - (crop.right ?? 0);
+    height *= 1 - (crop.top ?? 0) - (crop.bottom ?? 0);
+  }
+  if (!(width > 0) || !(height > 0)) return null;
+
+  return `${Math.round(width)}/${Math.round(height)}`;
 }
 
 export function renderEntryPage(entry: WireEntry, ctx: RenderContext): string {
@@ -241,6 +299,16 @@ export function renderEntryPage(entry: WireEntry, ctx: RenderContext): string {
   const source = safeUrl(entry.sourceUrl);
   const published = formatDate(entry.publishedAt, lang);
   const kind = entry.contentType === "opinion" ? "Opinion" : "News";
+
+  // Full width, natural aspect ratio - any manual crop the editor drew still
+  // applies, but no aspect is forced, so a portrait or panoramic Canva export
+  // both render correctly instead of being squeezed into a fixed box.
+  const heroSrc = heroImageUrl(entry.heroImage, ctx, { width: 1600 });
+  const heroAlt = entry.heroImage?.alt || entry.headline;
+  // Distinct from heroSrc: social platforms expect close to a 1.91:1 crop, so
+  // this one forces the aspect ratio, which is exactly when hotspot matters -
+  // it keeps the subject centered instead of an arbitrary top-left crop.
+  const ogImageSrc = heroImageUrl(entry.heroImage, ctx, { width: 1200, height: 630 });
 
   const structured: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -267,6 +335,7 @@ export function renderEntryPage(entry: WireEntry, ctx: RenderContext): string {
       structured.citation = { "@type": "CreativeWork", name: entry.sourceLabel, url: source };
     }
   }
+  if (heroSrc) structured.image = heroSrc;
 
   const head = `<meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${escapeHtml(canonical)}">
@@ -276,10 +345,19 @@ export function renderEntryPage(entry: WireEntry, ctx: RenderContext): string {
 <meta property="og:description" content="${escapeHtml(description)}">
 <meta property="og:url" content="${escapeHtml(canonical)}">
 <meta property="og:locale" content="${lang === "es" ? "es_ES" : "en_GB"}">
-<meta property="article:published_time" content="${escapeHtml(entry.publishedAt)}">
+<meta property="article:published_time" content="${escapeHtml(entry.publishedAt)}">${
+    ogImageSrc
+      ? `
+<meta property="og:image" content="${escapeHtml(ogImageSrc)}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">`
+      : ""
+  }
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${escapeHtml(entry.headline)}">
-<meta name="twitter:description" content="${escapeHtml(description)}">
+<meta name="twitter:description" content="${escapeHtml(description)}">${
+    ogImageSrc ? `\n<meta name="twitter:image" content="${escapeHtml(ogImageSrc)}">` : ""
+  }
 <script type="application/ld+json">${jsonLd(structured)}</script>`;
 
   const sourceLine = source
@@ -314,8 +392,16 @@ export function renderEntryPage(entry: WireEntry, ctx: RenderContext): string {
       )}</a></p>`
     : "";
 
+  const heroRatio = imageAspectRatio(entry.heroImage);
+  const heroBlock = heroSrc
+    ? `<div class="hero"><img src="${escapeHtml(heroSrc)}" alt="${escapeHtml(heroAlt)}"${
+        heroRatio ? ` style="aspect-ratio:${heroRatio}"` : ""
+      }></div>`
+    : "";
+
   const content = `<main class="frame"><article>
 <p class="eyebrow">${escapeHtml(kind)}</p>
+${heroBlock}
 <h1>${escapeHtml(entry.headline)}</h1>
 <p class="meta"><time datetime="${escapeHtml(entry.publishedAt)}">${escapeHtml(published)}</time></p>
 <div class="body">${renderBody(entry.body)}</div>
@@ -341,10 +427,24 @@ export function renderListingPage(entries: WireEntry[], ctx: RenderContext): str
     .map((entry) => {
       const lang = entry.language === "es" ? "es" : "en";
       const kind = entry.contentType === "opinion" ? "Opinion" : "News";
-      return `<li><a href="/news/${escapeHtml(entry.slug)}">
+      // Fixed square, unlike the entry page's natural-aspect hero: a card
+      // grid needs every thumbnail the same shape regardless of what aspect
+      // ratio the source upload came in at. Requesting a forced width+height
+      // is exactly what makes the builder apply the hotspot.
+      const thumbSrc = heroImageUrl(entry.heroImage, ctx, { width: 192, height: 192 });
+      // alt="" (not the image's own alt text) is deliberate: the thumbnail
+      // sits directly beside the headline it illustrates, so a screen reader
+      // describing it too would repeat information the link text already
+      // gives - the standard treatment for an image that is decorative in
+      // context even though it isn't decorative on its own (see the hero
+      // image above, which has no adjacent text and does get real alt text).
+      const thumb = thumbSrc
+        ? `<img src="${escapeHtml(thumbSrc)}" alt="" width="72" height="72" loading="lazy">`
+        : "";
+      return `<li><a href="/news/${escapeHtml(entry.slug)}">${thumb}<div>
 <span class="tag">${escapeHtml(kind)} · ${escapeHtml(formatDate(entry.publishedAt, lang))}</span>
 <h2>${escapeHtml(entry.headline)}</h2>
-</a></li>`;
+</div></a></li>`;
     })
     .join("\n");
 

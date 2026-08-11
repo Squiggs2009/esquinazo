@@ -29,6 +29,20 @@ export interface PortableTextBlock {
 }
 
 /**
+ * A Sanity image field value, exactly as it comes back from the API: the
+ * asset reference plus whatever hotspot/crop the editor set in Studio. Passed
+ * straight into @sanity/image-url's `.image()`, which reads `hotspot`/`crop`
+ * directly off this shape - not off the dereferenced asset - so nothing here
+ * should be flattened or renamed.
+ */
+export interface SanityImage {
+  asset?: { _ref?: string | null; _type?: string | null } | null;
+  hotspot?: { x: number; y: number; height: number; width: number } | null;
+  crop?: { top: number; bottom: number; left: number; right: number } | null;
+  alt?: string | null;
+}
+
+/**
  * A published Wire entry.
  *
  * `body` is typed as a union because the schema's shape is not pinned down
@@ -40,6 +54,7 @@ export interface WireEntry {
   _id: string;
   headline: string;
   slug: string;
+  heroImage?: SanityImage | null;
   body?: PortableTextBlock[] | string | null;
   contentType?: "news" | "opinion" | null;
   language?: "en" | "es" | null;
@@ -60,6 +75,7 @@ const ENTRY_PROJECTION = `{
   _id,
   headline,
   "slug": coalesce(slug.current, slug),
+  heroImage,
   body,
   contentType,
   language,

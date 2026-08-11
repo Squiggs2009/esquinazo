@@ -38,6 +38,27 @@ export const wireEntry = defineType({
     }),
 
     defineField({
+      name: "heroImage",
+      title: "Hero image",
+      type: "image",
+      description:
+        "Optional. Shown near the top of the entry page and as a thumbnail on the Wire listing. " +
+        "Hotspot is on because Canva exports arrive at whatever aspect ratio they arrive at - " +
+        "dragging the hotspot onto the subject keeps the listing's forced-square crop sensible " +
+        "even when the source image isn't square. Entries without one render exactly as they do " +
+        "today, nothing degrades.",
+      options: { hotspot: true },
+      fields: [
+        defineField({
+          name: "alt",
+          title: "Alt text",
+          type: "string",
+          description: "For screen readers, and shown if the image fails to load.",
+        }),
+      ],
+    }),
+
+    defineField({
       name: "publishedAt",
       title: "Published at",
       type: "datetime",
