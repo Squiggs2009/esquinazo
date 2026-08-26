@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import heroImage from "@/assets/images/hero.webp";
 import { ScoreTicker } from "@/components/ScoreTicker";
-import { Headlines } from "@/components/Headlines";
+import { EsquinazoNews } from "@/components/EsquinazoNews";
 import { MatchCard } from "@/components/MatchCard";
 import { MatchCardSkeleton, SkeletonList } from "@/components/Skeleton";
 import { ErrorState } from "@/components/States";
@@ -27,7 +27,7 @@ export default function Home() {
       <Hero />
       <ScoreTicker matches={ticker} />
       <Counters matchCount={matches.length} />
-      <Headlines />
+      <EsquinazoNews />
 
       <section className="u-frame py-section">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">

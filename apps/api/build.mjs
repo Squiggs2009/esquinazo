@@ -16,7 +16,6 @@ const FUNCTIONS = [
   "player-stats",
   "transfers",
   "refresh",
-  "news",
   "teams",
   "generate-wire-page",
 ];

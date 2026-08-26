@@ -5,8 +5,8 @@
 #
 #   s3-cloudfront -> React bundle on a private bucket behind CloudFront
 #   dynamodb      -> TTL cache for upstream football data
-#   lambda        -> fixtures / standings / players / player-stats / transfers / teams / news / generate-wire-page / refresh
-#   api-gateway   -> HTTP API routing /fixtures, /standings, /players, /players/stats, /transfers, /teams, /news, POST /wire/publish
+#   lambda        -> fixtures / standings / players / player-stats / transfers / teams / generate-wire-page / refresh
+#   api-gateway   -> HTTP API routing /fixtures, /standings, /players, /players/stats, /transfers, /teams, POST /wire/publish
 #   eventbridge   -> 5-minute schedule invoking the refresh function
 #   route53       -> DNS, skipped entirely while domain_name is "localhost"
 #
@@ -59,19 +59,6 @@ locals {
     refresh = {
       source_dir = "${local.lambda_source_root}/refresh"
       timeout    = 60
-    }
-  }
-
-  # Kept out of api_functions/api_function_names: unlike those, this function
-  # needs its own environment_variables. NEWS_API_KEY is scoped to just this
-  # function rather than added to common_environment_variables, so it is not
-  # readable from every other Lambda's console/env.
-  news_function = {
-    news = {
-      source_dir = "${local.lambda_source_root}/news"
-      environment_variables = {
-        NEWS_API_KEY = var.news_api_key
-      }
     }
   }
 
@@ -190,7 +177,6 @@ module "functions" {
 
   functions = merge(
     local.api_functions,
-    local.news_function,
     local.player_stats_function,
     local.wire_function,
     local.refresh_function,
@@ -227,13 +213,6 @@ module "api" {
       for name in local.api_function_names : "/${name}" => {
         lambda_function_name = module.functions.function_names[name]
         lambda_invoke_arn    = module.functions.invoke_arns[name]
-        methods              = ["GET"]
-      }
-    },
-    {
-      "/news" = {
-        lambda_function_name = module.functions.function_names["news"]
-        lambda_invoke_arn    = module.functions.invoke_arns["news"]
         methods              = ["GET"]
       }
     },

@@ -55,9 +55,9 @@ const en = {
   "home.statPlayers": "Players indexed",
   "home.statRefresh": "Refresh interval",
   "home.statRefreshUnit": " min",
-  "home.headlines": "Headlines",
-  "home.aroundLeagues": "Around the leagues",
-  "home.allNews": "All news →",
+  "home.newsEyebrow": "From The Wire",
+  "home.newsTitle": "Esquinazo News",
+  "home.newsLink": "→ The Wire",
 
   /* Fixtures */
   "fixtures.eyebrow": "Matches",
@@ -333,9 +333,9 @@ const es: Record<TranslationKey, string> = {
   "home.statPlayers": "Jugadores indexados",
   "home.statRefresh": "Actualización",
   "home.statRefreshUnit": " min",
-  "home.headlines": "Titulares",
-  "home.aroundLeagues": "Por las ligas",
-  "home.allNews": "Todas las noticias →",
+  "home.newsEyebrow": "Desde The Wire",
+  "home.newsTitle": "Esquinazo News",
+  "home.newsLink": "→ The Wire",
 
   "fixtures.eyebrow": "Partidos",
   "fixtures.title": "Partidos",

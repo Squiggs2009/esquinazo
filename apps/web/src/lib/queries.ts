@@ -4,7 +4,6 @@ import {
   getFixtureDetail,
   getFixtures,
   getFixturesByDate,
-  getNews,
   getPlayerStatistics,
   getSquad,
   getStandings,
@@ -138,15 +137,6 @@ export function useTransfers(playerId: number | undefined) {
     queryFn: () => getTransfers(playerId as number),
     enabled: typeof playerId === "number",
     staleTime: 60 * MINUTE,
-    retry: retryPolicy,
-  });
-}
-
-export function useNews() {
-  return useQuery({
-    queryKey: ["news"],
-    queryFn: getNews,
-    staleTime: 10 * MINUTE,
     retry: retryPolicy,
   });
 }

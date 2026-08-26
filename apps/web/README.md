@@ -110,7 +110,6 @@ unwraps `data` in `apiGet`.
 | `useStandings` | `GET /standings?competition=` | 5 min |
 | `useSquad` | `GET /players?team=` | 60 min |
 | `useTransfers` | `GET /transfers?person=` | 60 min |
-| `useNews` | `GET /news` | 10 min — **endpoint does not exist yet** |
 
 4xx responses are never retried; 5xx retries twice.
 

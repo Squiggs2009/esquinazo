@@ -37,12 +37,6 @@ variable "api_football_key" {
   sensitive   = true
 }
 
-variable "news_api_key" {
-  description = "API key for NewsAPI.org, injected only into the news Lambda (see local.news_function in main.tf)."
-  type        = string
-  sensitive   = true
-}
-
 variable "sanity_webhook_secret" {
   description = "Signing secret from the Sanity webhook, injected only into the generate-wire-page Lambda. Used to verify the sanity-webhook-signature header."
   type        = string

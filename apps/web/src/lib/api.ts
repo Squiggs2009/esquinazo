@@ -298,20 +298,6 @@ export interface TransfersResponse {
   transfers: TransferMove[];
 }
 
-export interface NewsArticle {
-  id: string;
-  title: string;
-  summary?: string;
-  publishedAt: string;
-  source?: string;
-  url?: string;
-  imageUrl?: string;
-}
-
-export interface NewsResponse {
-  articles: NewsArticle[];
-}
-
 /* ------------------------------------------------------------------ *
  * Media
  *
@@ -372,8 +358,6 @@ export const getPlayerStatistics = (playerId: number, season: number) =>
 
 export const getTransfers = (playerId: number) =>
   apiGet<TransfersResponse>("/transfers", { player: playerId });
-
-export const getNews = () => apiGet<NewsResponse>("/news");
 
 /** Clubs in a competition, for the Players page's league-driven club picker. */
 export const getTeams = (league: number, season?: number) =>
